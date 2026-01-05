@@ -16,8 +16,8 @@ class SingleCycleRiscV extends Module {
   // TODO: the program should be read in from a file
   val program = Array[Int](
     0x00200093, // addi x1 x0 2
-    0x00300113, // addi x2 x0 3
-    0x002081b3) // add x3 x1 x2
+    0x00300113) // addi x2 x0 3
+  //  0x002081b3) // add x3 x1 x2
 
   // A little bit of functional magic to convert the Scala Int Array to a Chisel Vec of UInt
   val imem = VecInit(program.map(_.U(32.W)))
@@ -40,8 +40,13 @@ class SingleCycleRiscV extends Module {
   val imm = instr(31, 20) // TODO sign extend
 
   switch(opcode) {
-    is(0x13.U) {
-      reg(rd) := reg(rs1) + imm
+    is(0x13.U) { // I-Type
+      val funct3 = instr(14, 12)
+      switch(funct3) {
+        is(0x0.U) { // addi instruction
+          reg(rd) := reg(rs1) + imm
+        }
+      }
     }
   }
 
