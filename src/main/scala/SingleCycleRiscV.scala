@@ -31,6 +31,7 @@ class SingleCycleRiscV extends Module {
   // We initialize the register file to 0 for a nicer display
   // In a real processor this is usually not done
   val reg = RegInit(vec)
+  val reg = (SyncReadMem(32, UInt(32.W)))
 
   val instr = imem(pc(31, 2))
 
