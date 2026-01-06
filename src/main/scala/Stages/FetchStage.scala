@@ -11,10 +11,15 @@ class FetchStage(code: Array[Int], PcStart: Int) extends Module {
 
   //Program counter
   val Pc = RegInit(PcStart.asUInt(32.W))
+  Pc := Pc + 4.U
+
+  // Registers
+  val pcReg = RegInit(0.U(32.W))
+  pcReg := Pc
+  val instrReg = RegInit(0.8(32.W))
+  instrReg := imem(Pc(31,2))
   
   // Når vi implementerer branching, skal vi ændre Pc så den kan muxes mellem Pc + 4 og en branch target address
-  io.pc := Pc
-  io.instr := imem(Pc(31,2))
-
-  Pc := Pc + 4.U
+  io.pc := pcReg
+  io.instr := instrReg
 }
