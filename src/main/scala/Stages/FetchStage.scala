@@ -1,3 +1,5 @@
+package stages
+
 import chisel3._
 
 class FetchStage(code: Array[Int], PcStart: Int) extends Module {
