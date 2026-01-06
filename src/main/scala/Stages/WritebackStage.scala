@@ -1,4 +1,5 @@
 
+package stages
 
 import chisel3._
 
@@ -9,7 +10,6 @@ class WritebackStage extends Module {
     val aluData    = Input(UInt(32.W))   // ALU result from EX stage
     val memData    = Input(UInt(32.W))   // load data from memory
     // val memToReg   = Input(Bool())       // 1=write memData, 0=write aluData
-    
 
     val wbRd       = Input(UInt(5.W))
     val wbRegWrite = Input(Bool())
