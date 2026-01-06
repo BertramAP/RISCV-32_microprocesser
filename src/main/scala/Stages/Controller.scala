@@ -1,5 +1,5 @@
 // Part of the decode stage that interprets instructions
-
+/*
 import chisel3._
 import chisel3.util._
 
@@ -34,3 +34,6 @@ class Controller extends Module {
 
   // Implement the control logic here
 }
+}
+
+ */
