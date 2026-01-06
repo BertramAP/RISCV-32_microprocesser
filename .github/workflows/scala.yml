@@ -27,3 +27,9 @@ jobs:
       run: sbt test
     - name: Generate verilog
       run: sbt run
+    - name: Upload Verilog
+      uses: actions/upload-artifact@v3
+      with:
+        name: verilog
+        path: |
+          *.v
