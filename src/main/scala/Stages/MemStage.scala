@@ -1,3 +1,4 @@
+package stages
 import chisel3._
 import chisel3.util._
 
@@ -31,8 +32,6 @@ class MemStage(depthWords: Int = 8) extends Module {
     dmem(io.addrWord) := io.storeData
   }
 
-  // If not memRead, you can output something else (often aluOut passthrough).
-  // Since you removed aluOut, choose 0 or keep last value if you want.
   io.wbData := Mux(io.memRead, loadData, 0.U)
   io.wbRd := io.rd
   io.wbRegWrite := io.regWrite
