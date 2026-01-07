@@ -28,6 +28,7 @@ class DecodeStage extends Module {
   val isImm = Wire(Bool())
   isImm := false.B
   funct7 := 0.U
+  funct3 := 0.U
 
   val registerFile = Module(new RegisterFile())
 
@@ -45,6 +46,7 @@ class DecodeStage extends Module {
       src2 := imm
       funct3 := io.in.instr(14, 12)
       dest := rd
+      aluOp := ALUops.ALU_ADD // Load uses addition
     } 
 
     is(19.U) { // I-Type
@@ -52,20 +54,28 @@ class DecodeStage extends Module {
       val imm = io.in.instr(31, 20)
       dest := rd
       funct3 := io.in.instr(14, 12)
-      when(funct3 === 0x1.U || funct3 === 0x5.U) {
-        src2 := imm
-        // TODO: handle funct7 for slli and srli
-        funct7 := io.in.instr(30)
-      }.otherwise {
-        src2 := imm
+      funct7 := imm(9)
+      src1 := io.in.instr(19, 15)
+      src2 := imm
+      // Determine ALU operation based on funct3 and funct7
+      switch(funct3) {
+        is(0.U) { aluOp := ALUops.ALU_ADD } // ADDI
+        is(1.U) { aluOp := ALUops.ALU_SLL } // SLLI
+        is(2.U) { aluOp := ALUops.ALU_SLT } // SLTI
+        is(3.U) { aluOp := ALUops.ALU_SLTU } // SLTIU
+        is(4.U) { aluOp := ALUops.ALU_XOR } // XORI
+        is(5.U) { aluOp := Mux(funct7 === 0.U, ALUops.ALU_SRL, ALUops.ALU_SRA) } // SRLI/SRAI
+        is(6.U) { aluOp := ALUops.ALU_OR } // OR
+        is(7.U) { aluOp := ALUops.ALU_AND } // ANDI
       }
-    } 
+    }
     is (23.U) { // auipc
       // TODO: find how to share pc
       val imm = io.in.instr(31, 12)
       dest := rd
       src1 := Cat(imm, Fill(12, 0.U))
       src2 := 0.U // Maybe set it to 12
+      
     }
     is(35.U) { // Store type
       //WIP
