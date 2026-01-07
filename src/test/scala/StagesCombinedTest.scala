@@ -6,12 +6,12 @@ import stages.AddiPipelineTop
 class StagesCombinedTest extends AnyFlatSpec with ChiselScalatestTester {
   "AddiPipelineTop" should "execute a sequence of addi instructions" in {
     val program = Array(
-      0x00100093,
-      0x00200113,
-      0x00300193,
-      0x00400213,
-      0x00000013,
-      0x00000013
+      0x00100093, // addi x1, x0, 1
+      0x00200113, // addi x2, x0, 2
+      0x00300193, // addi x3, x0, 3
+      0x00400213, // addi x4, x0, 4
+      0x00000013, // nop
+      0x00000013 // nop
     )
     val expected = Seq(1, 2, 3, 4)
     val pcStart = 0
