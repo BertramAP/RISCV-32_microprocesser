@@ -29,7 +29,7 @@ class DecodeStage extends Module {
   isImm := false.B
   funct7 := 0.U
   funct3 := 0.U
-
+  io.out.pc := io.in.pc
   val registerFile = Module(new RegisterFile())
 
   registerFile.io.readRegister1 := src1
@@ -75,7 +75,7 @@ class DecodeStage extends Module {
       dest := rd
       src1 := Cat(imm, Fill(12, 0.U))
       src2 := 0.U // Maybe set it to 12
-      
+      aluOp := ALUops.ALU_ADD
     }
     is(35.U) { // Store type
       //WIP
@@ -85,6 +85,7 @@ class DecodeStage extends Module {
       src2 := io.in.instr(24, 20)
       funct3 := io.in.instr(14, 12)
       dest := imm(4, 0)
+      aluOp := ALUops.ALU_ADD // Store uses addition
     } 
     is(51.U) { // R-type
       dest := rd
@@ -92,12 +93,23 @@ class DecodeStage extends Module {
       src2 := io.in.instr(24, 20)
       funct3 := io.in.instr(14, 12)
       funct7 := io.in.instr(30)
+      switch(funct3) {
+        is(0.U) { aluOp := Mux(funct7 === 0.U, ALUops.ALU_ADD, ALUops.ALU_SUB) } // ADD/SUB
+        is(1.U) { aluOp := ALUops.ALU_SLL } // SLL
+        is(2.U) { aluOp := ALUops.ALU_SLT } // SLT
+        is(3.U) { aluOp := ALUops.ALU_SLTU } // SLTU
+        is(4.U) { aluOp := ALUops.ALU_XOR } // XOR
+        is(5.U) { aluOp := Mux(funct7 === 0.U, ALUops.ALU_SRL, ALUops.ALU_SRA) } // SRL/SRA
+        is(6.U) { aluOp := ALUops.ALU_OR } // OR
+        is(7.U) { aluOp := ALUops.ALU_AND } // AND
+      }
     } 
     is(55.U) { // LUI
       val imm = io.in.instr(31, 12)
       dest := rd
       src1 := Cat(imm, Fill(12, 0.U))
       src2 := 0.U // Maybe set it to 12
+      aluOp := ALUops.ALU_ADD // LUI uses addition with 0
     }
     is(99.U) { // Branch type
       //Double check if works, and where pc goes
@@ -106,13 +118,14 @@ class DecodeStage extends Module {
       dest := Cat(imm(12), imm(10, 5), imm(4, 1), imm(11))
       src1 := io.in.instr(19, 15)
       src2 := io.in.instr(24, 20)
+      aluOp := ALUops.ALU_SUB // Branches use subtraction for comparison
     }
     is(111.U) { // JAL
       val imm = Cat(io.in.instr(31), io.in.instr(19, 12), io.in.instr(20), io.in.instr(30, 21))
       dest := rd
-      src1 := io.in.pc
-      src2 := imm
-
+      src1 := imm
+      src2 := 0.U
+      aluOp := ALUops.ALU_ADD // JAL uses addition to calculate target address
     }
     is(103.U) { // JALR
       // TODO: check how to handle pc
@@ -120,13 +133,14 @@ class DecodeStage extends Module {
       dest := rd
       src1 := io.in.instr(19, 15)
       src2 := imm
+      aluOp := ALUops.ALU_ADD // JALR uses addition to calculate target address
     }
     is(115.U) { // ECALL/EBREAK
       // TODO: handle system instructions
     }
   }
 
-  when(isImm) {
+  when(isImm) { //Uncertain if this works with sign extension, have to run test later
     io.out.src2 := src2
   }.otherwise {
     io.out.src2 := registerFile.io.readData2
