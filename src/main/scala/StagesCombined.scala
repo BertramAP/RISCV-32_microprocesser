@@ -28,4 +28,18 @@ class AddiPipelineTop extends Module {
     val wb_rd       = Output(UInt(5.W))
     val wb_we       = Output(Bool())
   })
+
+new fetchStage(Array(
+    0x00100093, // addi x1, x0, 1
+  ), 0)  
+new decodeStage()
+decodeStage.io.in <> fetchStage.io.out
+io.if_pc := fetchStage.io.out.pc
+
+
+registerFile.io.readRegister1 := decodeStage.io.out.src1
+registerFile.io.readRegister2 := decodeStage.io.out.src2
+new ALUstage()
+ALUstage.io.aluOp := decodeStage.io.out.aluOp
+
 }
