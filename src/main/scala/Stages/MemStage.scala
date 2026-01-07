@@ -40,5 +40,4 @@ class MemStage(depthWords: Int = 8) extends Module {
   io.wbRegWrite := io.regWrite
   io.wbMemToReg := io.memToReg
 
-  io.dbgMem := dmem
 }
