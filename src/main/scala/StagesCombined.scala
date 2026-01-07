@@ -44,7 +44,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
   idExReg := decodeStage.io.out
 
-  val aluStage = Module(new ALUStage())
+  val aluStage = Module(new ALU())
   aluStage.io.in := idExReg
   io.ex_aluOut := aluStage.io.aluOut
 
