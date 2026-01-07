@@ -23,6 +23,28 @@ class DecodeExecuteIO extends Bundle {
   val MemToReg = Bool()
 }
 
+
+class ExecuteMemIO extends Bundle {
+    val aluOut      = UInt(32.W)
+    val addrWord    = UInt(3.W)    // 0..7 (word index)
+    val storeData   = UInt(32.W)
+    val memRead     = Bool()
+    val memWrite    = Bool()
+
+    val rd          = UInt(5.W)
+    val regWrite    = Bool()
+    val memToReg    = Bool()
+}
+
+class MemWbIO extends Bundle {
+    val memData    = UInt(32.W)
+    val aluOut     = UInt(32.W) 
+    val wbRd       = UInt(5.W)
+    val wbRegWrite = Bool()
+    val wbMemToReg = Bool()
+}
+
+
 class DecodeInputIO extends Bundle {
   val instr = UInt(32.W)
   val pc    = UInt(32.W)

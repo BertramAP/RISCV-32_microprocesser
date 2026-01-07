@@ -7,12 +7,13 @@ import chisel3.util._
 class ALU extends Module {
   val io = IO(new Bundle {
     val in = Input(new DecodeExecuteIO)
+
     val aluOut = Output(UInt(32.W))
   })
 
   io.aluOut := 0.U
 
-  // Extract the lower 5 bits for shift amount (standard RISC-V)
+  // Extract the lower 5 bits for shift amount
   val shamt = io.in.src2(4, 0)
 
   switch (io.in.aluOp) {
