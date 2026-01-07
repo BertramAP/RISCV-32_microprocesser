@@ -16,7 +16,7 @@ class StagesCombinedTest extends AnyFlatSpec with ChiselScalatestTester {
     )
     val expected = Seq(1, 2, 3, 4)
     val pcStart = 0
-    test(new AddiPipelineTop(program, pcStart)) { c =>
+    test(new AddiPipelineTop(program, pcStart)).withAnnotations(Seq(WriteVcdAnnotation)) { c =>
       c.clock.step(2)
       expected.foreach { value =>
         c.clock.step()
