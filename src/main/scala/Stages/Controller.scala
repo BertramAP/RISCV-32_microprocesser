@@ -7,7 +7,6 @@ class Controller extends Module {
   val io = IO(new Bundle {
     val opcode = Input(UInt(7.W))
 
-    val Branch = Output(Bool())
     val RegWrite = Output(Bool())
     val ALUSrc = Output(Bool())
     val PCSrc = Output(Bool())
