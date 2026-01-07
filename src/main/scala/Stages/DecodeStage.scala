@@ -29,7 +29,6 @@ class DecodeStage extends Module {
   isImm := false.B
   funct7 := 0.U
 
-
   val registerFile = Module(new RegisterFile())
 
   registerFile.io.readRegister1 := src1
@@ -39,6 +38,15 @@ class DecodeStage extends Module {
   registerFile.io.regWrite := false.B
 
   switch(opcode) {
+    is(3.U) { // Load type
+      isImm := true.B
+      val imm = io.in.instr(31, 20)
+      src1 := (io.in.instr(19, 15))
+      src2 := imm
+      funct3 := io.in.instr(14, 12)
+      dest := rd
+    } 
+
     is(19.U) { // I-Type
       isImm := true.B
       val imm = io.in.instr(31, 20)
@@ -52,6 +60,22 @@ class DecodeStage extends Module {
         src2 := imm
       }
     } 
+    is (23.U) { // auipc
+      // TODO: find how to share pc
+      val imm = io.in.instr(31, 12)
+      dest := rd
+      src1 := Cat(imm, Fill(12, 0.U))
+      src2 := 0.U // Maybe set it to 12
+    }
+    is(35.U) { // Store type
+      //WIP
+      val imm = Cat(io.in.instr(31, 25), io.in.instr(11, 7))
+      isImm := true.B
+      src1 := (io.in.instr(19, 15))
+      src2 := io.in.instr(24, 20)
+      funct3 := io.in.instr(14, 12)
+      dest := imm(4, 0)
+    } 
     is(51.U) { // R-type
       dest := rd
       src1 := io.in.instr(19, 15)
@@ -59,21 +83,37 @@ class DecodeStage extends Module {
       funct3 := io.in.instr(14, 12)
       funct7 := io.in.instr(30)
     } 
-    is(3.U) { // Load type
-      isImm := true.B
-      val imm = io.in.instr(31, 20)
-      src1 := (io.in.instr(19, 15))
-      src2 := imm
-      funct3 := io.in.instr(14, 12)
+    is(55.U) { // LUI
+      val imm = io.in.instr(31, 12)
       dest := rd
-    } 
-    is(35.U) { // Store type
+      src1 := Cat(imm, Fill(12, 0.U))
+      src2 := 0.U // Maybe set it to 12
+    }
+    is(99.U) { // Branch type
+      //Double check if works, and where pc goes
       val imm = Cat(io.in.instr(31, 25), io.in.instr(11, 7))
-      isImm := true.B
-      src1 := (io.in.instr(19, 15))
-      src2 := imm
       funct3 := io.in.instr(14, 12)
-    } 
+      dest := Cat(imm(12), imm(10, 5), imm(4, 1), imm(11))
+      src1 := io.in.instr(19, 15)
+      src2 := io.in.instr(24, 20)
+    }
+    is(111.U) { // JAL
+      val imm = Cat(io.in.instr(31), io.in.instr(19, 12), io.in.instr(20), io.in.instr(30, 21))
+      dest := rd
+      src1 := io.in.pc
+      src2 := imm
+
+    }
+    is(103.U) { // JALR
+      // TODO: check how to handle pc
+      val imm = io.in.instr(31, 20)
+      dest := rd
+      src1 := io.in.instr(19, 15)
+      src2 := imm
+    }
+    is(115.U) { // ECALL/EBREAK
+      // TODO: handle system instructions
+    }
   }
 
   when(isImm) {
@@ -88,7 +128,6 @@ class DecodeStage extends Module {
   io.out.funct3 := funct3
   io.out.funct7 := funct7
 }
-
 object DecodeStage extends App {
   emitVerilog(new DecodeStage(), Array("--target-dir", "generated"))
-  }
+}
