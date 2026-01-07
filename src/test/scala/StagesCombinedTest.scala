@@ -23,3 +23,4 @@ class StagesCombinedTest extends AnyFlatSpec with ChiselScalatestTester {
       }
   }
 }
+}
