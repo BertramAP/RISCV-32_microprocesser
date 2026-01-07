@@ -1,5 +1,6 @@
 import chisel3.iotesters._
 import org.scalatest._
+import stages.MemStage
 
 class MemStageSpec extends FlatSpec with Matchers {
   "MemStage" should "store then load correctly" in {

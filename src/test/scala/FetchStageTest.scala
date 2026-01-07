@@ -1,6 +1,7 @@
 import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
+import stages.FetchStage
 
 class FetchStageTest extends AnyFlatSpec with ChiselScalatestTester {
 
@@ -14,18 +15,19 @@ class FetchStageTest extends AnyFlatSpec with ChiselScalatestTester {
     val pcStart = 0
 
     test(new FetchStage(program, pcStart)) { c =>
+      c.clock.step(1)
       for (i <- program.indices) {
         // PC should be at the correct address for the current instruction
-        c.io.pc.expect((pcStart + i * 4).U)
+        c.io.out.pc.expect((pcStart + i * 4).U)
         // The instruction should match what's in our program memory
-        c.io.instr.expect(program(i).U)
+        c.io.out.instr.expect(program(i).U)
 
         // Step the clock to fetch the next instruction
         c.clock.step(1)
       }
 
       // After fetching all instructions, PC should be at the address of the next instruction
-      c.io.pc.expect((pcStart + program.length * 4).U)
+      c.io.out.pc.expect((pcStart + program.length * 4).U)
     }
   }
 }

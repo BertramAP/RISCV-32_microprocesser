@@ -77,9 +77,9 @@ class DecodeStage extends Module {
   }
 
   when(isImm) {
-    io.src2 := src2
+    io.out.src2 := src2
   }.otherwise {
-    io.src2 := registerFile.io.readData2
+    io.out.src2 := registerFile.io.readData2
   }
 
   io.out.aluOp := aluOp // Temporary, to be set based on instruction decoding
