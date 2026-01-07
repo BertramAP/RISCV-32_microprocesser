@@ -8,35 +8,35 @@ class MemStageSpec extends FlatSpec with Matchers {
       new PeekPokeTester(dut) {
 
         // STORE: mem[0] = 0xBEEFBEEF
-        poke(dut.io.addrWord, 0)
-        poke(dut.io.storeData, 0xBEEFBEEFL)
-        poke(dut.io.memWrite, 1)
-        poke(dut.io.memRead, 0)
-        poke(dut.io.rd, 0)
-        poke(dut.io.regWrite, 0)
+        poke(dut.io.in.addrWord, 0)
+        poke(dut.io.in.storeData, 0xBEEFBEEFL)
+        poke(dut.io.in.memWrite, 1)
+        poke(dut.io.in.memRead, 0)
+        poke(dut.io.in.rd, 0)
+        poke(dut.io.in.regWrite, 0)
         step(1)
 
         // STORE: mem[0] = 0xDEADEAD to overwrite
-        poke(dut.io.addrWord, 0)
-        poke(dut.io.storeData, 0xDEADEADL)
-        poke(dut.io.memWrite, 1)
-        poke(dut.io.memRead, 0)
-        poke(dut.io.rd, 0)
-        poke(dut.io.regWrite, 0)
+        poke(dut.io.in.addrWord, 0)
+        poke(dut.io.in.storeData, 0xDEADEADL)
+        poke(dut.io.in.memWrite, 1)
+        poke(dut.io.in.memRead, 0)
+        poke(dut.io.in.rd, 0)
+        poke(dut.io.in.regWrite, 0)
         step(1)
 
         // LOAD: x5 = mem[0]
-        poke(dut.io.addrWord, 0)
-        poke(dut.io.memWrite, 0)
-        poke(dut.io.memRead, 1)
-        poke(dut.io.memToReg, 1)
-        poke(dut.io.rd, 5)
-        poke(dut.io.regWrite, 1)
+        poke(dut.io.in.addrWord, 0)
+        poke(dut.io.in.memWrite, 0)
+        poke(dut.io.in.memRead, 1)
+        poke(dut.io.in.memToReg, 1)
+        poke(dut.io.in.rd, 5)
+        poke(dut.io.in.regWrite, 1)
         step(1)
 
-        expect(dut.io.memDataOut, 0xDEADEADL)
-        expect(dut.io.wbRd, 5)
-        expect(dut.io.wbRegWrite, 1)
+        expect(dut.io.out.memData, 0xDEADEADL)
+        expect(dut.io.out.wbRd, 5)
+        expect(dut.io.out.wbRegWrite, 1)
       }
     } should be(true)
   }

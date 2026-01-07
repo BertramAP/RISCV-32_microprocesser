@@ -57,24 +57,24 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   exMemRegWrite := false.B
 
   val memStage = Module(new MemStage())
-  memStage.io.aluOutIn := exMemAluOut
-  memStage.io.addrWord := exMemAluOut(4,2)
-  memStage.io.storeData := exMemAluOut
-  memStage.io.memRead := false.B
-  memStage.io.memWrite := false.B
-  memStage.io.rd := exMemRd
-  memStage.io.regWrite := exMemRegWrite
-  memStage.io.memToReg := false.B
+  memStage.io.in.aluOut := exMemAluOut
+  memStage.io.in.addrWord := exMemAluOut(4, 2)
+  memStage.io.in.storeData := exMemAluOut
+  memStage.io.in.memRead := false.B
+  memStage.io.in.memWrite := false.B
+  memStage.io.in.rd := exMemRd
+  memStage.io.in.regWrite := exMemRegWrite
+  memStage.io.in.memToReg := false.B
   
   // MEM/WB pipeline registers
   val memWbData = RegInit(0.U(32.W))
   val memWbRd = RegInit(0.U(5.W))
   val memWbRegWrite = RegInit(false.B)
   val memWbMemToReg = RegInit(false.B)
-  memWbData := memStage.io.memDataOut
-  memWbRd := memStage.io.wbRd
-  memWbRegWrite := memStage.io.wbRegWrite
-  memWbMemToReg := memStage.io.wbMemToReg
+  memWbData := memStage.io.out.memData
+  memWbRd := memStage.io.out.wbRd
+  memWbRegWrite := memStage.io.out.wbRegWrite
+  memWbMemToReg := memStage.io.out.wbMemToReg
   
   val wbStage = Module(new WritebackStage())
   wbStage.io.aluData := exMemAluOut

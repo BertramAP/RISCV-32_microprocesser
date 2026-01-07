@@ -7,37 +7,23 @@ class MemStage(depthWords: Int = 8) extends Module {
 
   val io = IO(new Bundle {
     // from EX/MEM
-    val aluOutIn   = Input(UInt(32.W))
-    val addrWord = Input(UInt(3.W))     // 0..7 (word index)
-    val storeData = Input(UInt(32.W))
-    val memRead = Input(Bool())
-    val memWrite  = Input(Bool())
-
-    val rd = Input(UInt(5.W))
-    val regWrite  = Input(Bool())
-    val memToReg   = Input(Bool())
+    val in = Input(new ExecuteMemIO)
 
     // to MEM/WB
-    val memDataOut = Output(UInt(32.W))
-    val aluOutOut  = Output(UInt(32.W)) 
-    val wbRd       = Output(UInt(5.W))
-    val wbRegWrite = Output(Bool())
-    val wbMemToReg = Output(Bool())
+    val out = Output(new MemWbIO)
   })
 
   val dmem = RegInit(VecInit(Seq.fill(8)(0.U(32.W))))
 
-  val loadData = dmem(io.addrWord)
+  val loadData = dmem(io.in.addrWord)
 
-  when (io.memWrite) {
-    dmem(io.addrWord) := io.storeData
+  when (io.in.memWrite) {
+    dmem(io.in.addrWord) := io.in.storeData
   }
 
-  io.memDataOut := loadData
-  io.aluOutOut  := io.aluOutIn
-
-  io.wbRd       := io.rd
-  io.wbRegWrite := io.regWrite
-  io.wbMemToReg := io.memToReg
-
+io.out.memData := Mux(io.in.memRead, loadData, 0.U) // or just loadData
+io.out.aluOut  := io.in.aluOut
+io.out.wbRd       := io.in.rd
+io.out.wbRegWrite := io.in.regWrite
+io.out.wbMemToReg := io.in.memToReg
 }
