@@ -4,14 +4,15 @@ import chisel3.util._
 
 class ExecuteStage extends Module {
     val io = IO(new Bundle {
-        // Inputs from the Decode stage
-        val in = Input(new DecodeExecuteIO)
-        // Outputs to the Memory stage
-        val out = Output(new ExecuteMemIO)
+      // Inputs from the Decode stage
+      val in = Input(new DecodeExecuteIO)
+      // Outputs to the Memory stage
+      val out = Output(new ExecuteMemIO)
     })
     
     val ALU = Module(new ALU())
-    ALU.io.in := io.in
+    ALU.io.src1 := io.in.src1
+    ALU.io.src2 := Mux(io.in.ALUSrc, io.in.src1, io.in.imm)
 
     io.out.aluOut := ALU.io.aluOut
     io.out.addrWord := ALU.io.aluOut(4, 2)
@@ -21,5 +22,4 @@ class ExecuteStage extends Module {
     io.out.rd := io.in.dest(4, 0) // Truncate to 5 bits for register index
     io.out.regWrite := true.B // For simplicity, always write back
     io.out.memToReg := false.B
-    
-    }
+}

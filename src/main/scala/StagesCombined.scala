@@ -44,15 +44,15 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
   idExReg := decodeStage.io.out
 
-  val aluStage = Module(new ALU())
-  aluStage.io.in := idExReg
-  io.ex_aluOut := aluStage.io.aluOut
+  val executeStage = Module(new ExecuteStage())
+  executeStage.io.in := idExReg
+  io.ex_aluOut := executeStage.io.out.aluOut
 
   // EX/MEM pipeline registers (simple set for current minimal pipeline)
   val exMemAluOut = RegInit(0.U(32.W))
   val exMemRd = RegInit(0.U(5.W))
   val exMemRegWrite = RegInit(false.B)
-  exMemAluOut := aluStage.io.aluOut
+  exMemAluOut := executeStage.io.out.aluOut
   exMemRd := idExReg.dest(4,0)
   exMemRegWrite := false.B
 
