@@ -1,39 +1,49 @@
-// Part of the decode stage that interprets instructions
-/*
+
+
 import chisel3._
 import chisel3.util._
 
 class Controller extends Module {
   val io = IO(new Bundle {
-    val opcode = Input(0.U(7.W))
-    val aluOp = Output(0.U(.W))
+    val opcode = Input(UInt(7.W))
+
+    val RegWrite = Output(Bool())
+    val ALUSrc = Output(Bool())
+    val PCSrc = Output(Bool())
+    val MemRead = Output(Bool())
+    val MemWrite = Output(Bool())
+    val MemToReg = Output(Bool())
   })
 
+  // Default values
+  io.RegWrite := false.B
+  io.ALUSrc := false.B
+  io.PCSrc := false.B
+  io.MemRead := false.B
+  io.MemWrite := false.B
+  io.MemToReg := false.B
+
   switch(io.opcode) {
-    is(0x13.U) { // I-Type
-      val funct3 = 0.U(3.W)
-      switch(funct3) {
-        is(0x0.U) { // addi instruction
-          io.aluOp := 2.U // ALU operation code for ADD
-        }
-        is(0x1.U) { // slli instruction
-          io.aluOp := 1.U // ALU operation code for SLL
-        }
-        is(0x2.U) { // slti instruction
-          io.aluOp := 2.U // ALU operation code for SLT
-        }
-      }
+    is("b0000011".U) { // Load
+      io.RegWrite := true.B
+      io.ALUSrc := true.B
+      io.MemRead := true.B
+      io.MemToReg := true.B
     }
-    is(0x33) { // R-Type
-      val funct3 = 0.U(3.W)
-      val funct7 = 0.U(7.W)
-      io.aluOp := 2.U // ALU operation code for R-Type
-    
-
+    is("b0100011".U) { // Store
+      io.ALUSrc := true.B
+      io.MemWrite := true.B
+    }
+    is("b0010011".U) { // I-Type 
+      io.RegWrite := true.B
+      io.ALUSrc := true.B
+    }
+    is("b0110011".U) { // R-Type 
+      io.RegWrite := true.B
+    }
+    is("b1100011".U) { // Branch
+      io.PCSrc := true.B
+    }
   }
-
-  // Implement the control logic here
-}
 }
 
- */
