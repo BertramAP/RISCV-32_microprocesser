@@ -11,7 +11,7 @@ class DecodeStage extends Module {
   }
   val io = IO(new Bundle {
     // Inputs from the Fetch stage
-    val in = Input(new FetchDecodeIO)
+    val in = Input(new DecodeInputIO)
     // Outputs to the Execute stage
     val out = Output(new DecodeExecuteIO)
   })
@@ -20,7 +20,7 @@ class DecodeStage extends Module {
   val src2 = WireDefault(0.U(32.W))
   val dest = WireDefault(0.U(32.W))
   val funct3 = WireDefault(0.U(3.W))
-  val opcode = WireDefault(0.U(7.W))
+  val opcode = WireDefault(io.in.instr(6, 0))
   opcode := io.in.instr(6, 0)
   val rd = WireDefault(0.U(5.W))
   rd := io.in.instr(11, 7)
@@ -38,6 +38,16 @@ class DecodeStage extends Module {
   registerFile.io.writeData := 0.U
   registerFile.io.regWrite := false.B
 
+  val controller = Module(new Controller())
+  controller.io.opcode := opcode
+  io.out.RegWrite := controller.io.out.RegWrite
+  io.out.ALUSrc := controller.io.out.ALUSrc
+  io.out.PCSrc := controller.io.out.PCSrc
+  io.out.MemRead := controller.io.out.MemRead
+  io.out.MemWrite := controller.io.out.MemWrite
+  io.out.MemToReg := controller.io.out.MemToReg
+  
+  
   switch(opcode) {
     is(3.U) { // Load type
       isImm := true.B
@@ -80,11 +90,10 @@ class DecodeStage extends Module {
     is(35.U) { // Store type
       //WIP
       val imm = Cat(io.in.instr(31, 25), io.in.instr(11, 7))
-      isImm := true.B
       src1 := (io.in.instr(19, 15))
       src2 := io.in.instr(24, 20)
       funct3 := io.in.instr(14, 12)
-      dest := imm(4, 0)
+      dest := imm
       aluOp := ALUops.ALU_ADD // Store uses addition
     } 
     is(51.U) { // R-type
@@ -112,7 +121,7 @@ class DecodeStage extends Module {
       aluOp := ALUops.ALU_ADD // LUI uses addition with 0
     }
     is(99.U) { // Branch type
-      //Double check if works, and where pc goes
+      //Double check if works, and sign extension
       val imm = Cat(io.in.instr(31, 25), io.in.instr(11, 7), 0.U(1.W))
       funct3 := io.in.instr(14, 12)
       dest := Cat(imm(12), imm(10, 5), imm(4, 1), imm(11))
