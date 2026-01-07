@@ -3,7 +3,7 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class AddiPipelineTop extends Module {
+class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   val io = IO(new Bundle {
     // debug outputs for each stage
     val if_pc        = Output(UInt(32.W))
@@ -29,9 +29,7 @@ class AddiPipelineTop extends Module {
     val wb_we        = Output(Bool())
   })
 
-  val fetchStage = Module(new FetchStage(Array(
-    0x00100093, // addi x1, x0, 1
-  ), 0))
+  val fetchStage = Module(new FetchStage(code, PcStart))
 
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
@@ -59,24 +57,29 @@ class AddiPipelineTop extends Module {
   exMemRegWrite := false.B
 
   val memStage = Module(new MemStage())
+  memStage.io.aluOutIn := exMemAluOut
   memStage.io.addrWord := exMemAluOut(4,2)
   memStage.io.storeData := exMemAluOut
   memStage.io.memRead := false.B
   memStage.io.memWrite := false.B
   memStage.io.rd := exMemRd
   memStage.io.regWrite := exMemRegWrite
+  memStage.io.memToReg := false.B
   
   // MEM/WB pipeline registers
   val memWbData = RegInit(0.U(32.W))
   val memWbRd = RegInit(0.U(5.W))
   val memWbRegWrite = RegInit(false.B)
-  memWbData := memStage.io.wbData
+  val memWbMemToReg = RegInit(false.B)
+  memWbData := memStage.io.memDataOut
   memWbRd := memStage.io.wbRd
   memWbRegWrite := memStage.io.wbRegWrite
+  memWbMemToReg := memStage.io.wbMemToReg
   
   val wbStage = Module(new WritebackStage())
   wbStage.io.aluData := exMemAluOut
   wbStage.io.memData := memWbData
+  wbStage.io.memToReg := memWbMemToReg
   wbStage.io.wbRd := memWbRd
   wbStage.io.wbRegWrite := memWbRegWrite
   

@@ -29,11 +29,12 @@ class MemStageSpec extends FlatSpec with Matchers {
         poke(dut.io.addrWord, 0)
         poke(dut.io.memWrite, 0)
         poke(dut.io.memRead, 1)
+        poke(dut.io.memToReg, 1)
         poke(dut.io.rd, 5)
         poke(dut.io.regWrite, 1)
         step(1)
 
-        expect(dut.io.wbData, 0xDEADEADL)
+        expect(dut.io.memDataOut, 0xDEADEADL)
         expect(dut.io.wbRd, 5)
         expect(dut.io.wbRegWrite, 1)
       }
