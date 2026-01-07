@@ -91,7 +91,7 @@ class DecodeStage extends Module {
     }
     is(99.U) { // Branch type
       //Double check if works, and where pc goes
-      val imm = Cat(io.in.instr(31, 25), io.in.instr(11, 7))
+      val imm = Cat(io.in.instr(31, 25), io.in.instr(11, 7), 0.U(1.W))
       funct3 := io.in.instr(14, 12)
       dest := Cat(imm(12), imm(10, 5), imm(4, 1), imm(11))
       src1 := io.in.instr(19, 15)
@@ -128,6 +128,7 @@ class DecodeStage extends Module {
   io.out.funct3 := funct3
   io.out.funct7 := funct7
 }
+/*
 object DecodeStage extends App {
   emitVerilog(new DecodeStage(), Array("--target-dir", "generated"))
-}
+}*/
