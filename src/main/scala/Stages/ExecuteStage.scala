@@ -12,7 +12,7 @@ class ExecuteStage extends Module {
     
     val ALU = Module(new ALU())
     ALU.io.src1 := io.in.src1
-    ALU.io.src2 := Mux(io.in.ALUSrc, io.in.src1, io.in.imm)
+    ALU.io.src2 := Mux(io.in.ALUSrc, io.in.src2, io.in.imm)
 
     io.out.aluOut := ALU.io.aluOut
     io.out.addrWord := ALU.io.aluOut(4, 2)

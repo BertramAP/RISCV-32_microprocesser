@@ -7,6 +7,11 @@ class FetchDecodeIO extends Bundle {
   val pc    = UInt(32.W)
 }
 
+class FetchBranchIO extends Bundle {
+  val branchTaken = Bool()
+  val branchTarget = UInt(32.W)
+}
+
 class DecodeExecuteIO extends Bundle {
   val aluOp  = UInt(4.W)
   val src1   = UInt(32.W)

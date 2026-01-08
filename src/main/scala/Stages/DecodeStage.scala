@@ -56,7 +56,7 @@ class DecodeStage extends Module {
       funct3 := io.in.instr(14, 12)
       dest := rd
       aluOp := ALUops.ALU_ADD // Load uses addition
-    } 
+    }
 
     is(19.U) { // I-Type
       imm := signExtendIType(io.in.instr)
