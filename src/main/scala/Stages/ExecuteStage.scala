@@ -14,7 +14,7 @@ class ExecuteStage extends Module {
 
     // Forward control signals to memory stage
     io.out.memRead := io.in.MemWrite
-    io.out.memWrite := io.in.MemRed
+    io.out.memWrite := io.in.MemRead
 
     // Forward control signals to writeback stage
     io.out.regWrite := io.in.RegWrite
