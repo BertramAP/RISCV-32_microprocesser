@@ -17,10 +17,11 @@ class DecodeExecuteIO extends Bundle {
   val src1   = UInt(32.W)
   val src2   = UInt(32.W)
   val imm    = UInt(32.W)
-  val dest   = UInt(32.W)
+  val dest   = UInt(5.W)
   val funct3 = UInt(3.W)
   val funct7 = UInt(1.W)
   val pc = UInt(32.W)
+  val isPC = Bool()
   val RegWrite = Bool()
   val ALUSrc = Bool()
   val PCSrc = Bool()
@@ -30,7 +31,25 @@ class DecodeExecuteIO extends Bundle {
   val MemWrite = Bool()
   val MemToReg = Bool()
 }
-
+class DecodeOutputsIO extends Bundle {
+  val aluOp  = UInt(4.W)
+  val src1   = UInt(5.W)
+  val src2   = UInt(5.W)
+  val imm    = UInt(32.W)
+  val dest   = UInt(5.W)
+  val funct3 = UInt(3.W)
+  val funct7 = UInt(1.W)
+  val pc = UInt(32.W)
+  val isPC = Bool()
+  val RegWrite = Bool()
+  val ALUSrc = Bool()
+  val PCSrc = Bool()
+  val isJump = Bool()
+  val isBranch = Bool()
+  val MemRead = Bool()
+  val MemWrite = Bool()
+  val MemToReg = Bool()
+}
 
 class ExecuteMemIO extends Bundle {
     val aluOut      = UInt(32.W)

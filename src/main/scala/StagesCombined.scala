@@ -20,17 +20,19 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
     val ex_rd        = Output(UInt(5.W))
     val ex_regWrite  = Output(Bool())
 
-    val mem_wbData   = Output(UInt(32.W))
-    val mem_rd       = Output(UInt(5.W))
-    val mem_regWrite = Output(Bool())
+    val mem_wbData  = Output(UInt(32.W))
+    val mem_rd      = Output(UInt(5.W))
+    val mem_regWrite= Output(Bool())
 
-    val wb_wdata     = Output(UInt(32.W))
-    val wb_rd        = Output(UInt(5.W))
-    val wb_we        = Output(Bool())
+    val wb_wdata    = Output(UInt(32.W))
+    val wb_rd       = Output(UInt(5.W))
+    val wb_we       = Output(Bool())
   })
 
   val fetchStage = Module(new FetchStage(code, PcStart))
-
+  val wbRd = WireDefault(0.U(5.W))
+  val wbWd = WireDefault(0.U(32.W))
+  val wbRw = WireDefault(false.B)
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
   ifIdReg := fetchStage.io.out
@@ -40,14 +42,24 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   val decodeStage = Module(new DecodeStage())
   decodeStage.io.in := ifIdReg
   
+  val registerFile = Module(new RegisterFile())
+  registerFile.io.readRegister1 := decodeStage.io.out.src1
+  registerFile.io.readRegister2 := decodeStage.io.out.src2
+  registerFile.io.writeRegister := wbRd
+  registerFile.io.writeData := wbWd
+  registerFile.io.regWrite := wbRw
+
   // ID/EX pipeline register
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
   idExReg := decodeStage.io.out
+  idExReg.src1 := Mux(decodeStage.io.out.isPC, decodeStage.io.out.pc, registerFile.io.readData1)
+  idExReg.src2 := registerFile.io.readData2
 
   val executeStage = Module(new ExecuteStage())
   executeStage.io.in := idExReg
   io.ex_aluOut := executeStage.io.out.aluOut
 
+  
   // EX/MEM pipeline registers (simple set for current minimal pipeline)
   val exMemAluOut = RegInit(0.U(32.W))
   val exMemRd = RegInit(0.U(5.W))
@@ -56,6 +68,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   exMemRd := idExReg.dest(4,0)
   exMemRegWrite := false.B
 
+  
   val memStage = Module(new MemStage())
   memStage.io.in.aluOut := exMemAluOut
   memStage.io.in.addrWord := exMemAluOut(4, 2)
@@ -83,14 +96,10 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   wbStage.io.wbRd := memWbRd
   wbStage.io.wbRegWrite := memWbRegWrite
   
-  val registerFile = Module(new RegisterFile())
-  registerFile.io.readRegister1 := 0.U
-  registerFile.io.readRegister2 := 0.U
-  registerFile.io.writeRegister := wbStage.io.rfWriteRd
-  registerFile.io.writeData := wbStage.io.rfWriteData
-  registerFile.io.regWrite := wbStage.io.rfRegWrite
 
-
+  wbRd := wbStage.io.rfWriteRd
+  wbWd := wbStage.io.rfWriteData
+  wbRw := wbStage.io.rfRegWrite
   // Debug outputs
   io.ifid_instr := ifIdReg.instr
 
