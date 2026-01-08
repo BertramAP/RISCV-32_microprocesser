@@ -41,10 +41,13 @@ class DecodeStage extends Module {
   controller.io.opcode := opcode
   io.out.RegWrite := controller.io.out.RegWrite
   io.out.ALUSrc := controller.io.out.ALUSrc
-  io.out.PCSrc := controller.io.out.PCSrc
   io.out.MemRead := controller.io.out.MemRead
   io.out.MemWrite := controller.io.out.MemWrite
   io.out.MemToReg := controller.io.out.MemToReg
+  io.out.isJump := controller.io.out.isJump
+  io.out.isJumpr := controller.io.out.isJumpr
+  io.out.isBranch := controller.io.out.isBranch
+  
   val imm = WireDefault(0.U(32.W))
   
   switch(opcode) {
