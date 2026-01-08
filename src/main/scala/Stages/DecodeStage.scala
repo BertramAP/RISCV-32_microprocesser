@@ -4,10 +4,14 @@ import chisel3._
 import chisel3.util._
 
 class DecodeStage extends Module {
-
+  // TODO: Output immediate value with its own wire.
+  
   // Helper function for sign-extending I-type immediates
   def signExtendIType(instr: UInt): UInt = {
     Cat(Fill(20, instr(31)), instr(31, 20))
+  }
+  def signExtendBType(instr: UInt): UInt = {
+    Cat(Fill(19, instr(31)), instr(31), instr(7), instr(30, 25), instr(11, 8), 0.U(1.W))
   }
   val io = IO(new Bundle {
     // Inputs from the Fetch stage
@@ -21,14 +25,10 @@ class DecodeStage extends Module {
   val dest = WireDefault(0.U(32.W))
   val funct3 = WireDefault(0.U(3.W))
   val opcode = WireDefault(io.in.instr(6, 0))
-  opcode := io.in.instr(6, 0)
-  val rd = WireDefault(0.U(5.W))
-  rd := io.in.instr(11, 7)
-  val funct7 = WireDefault(0.U(1.W)) // We only care about bit 30, since func 7 can only be 0x00 or 0x20
-  val isImm = Wire(Bool())
-  isImm := false.B
-  funct7 := 0.U
-  funct3 := 0.U
+  val rd = WireDefault(io.in.instr(11, 7))
+  val funct7 = WireDefault(0.U(1.W))
+
+  
   io.out.pc := io.in.pc
   val registerFile = Module(new RegisterFile())
 
@@ -46,12 +46,11 @@ class DecodeStage extends Module {
   io.out.MemRead := controller.io.out.MemRead
   io.out.MemWrite := controller.io.out.MemWrite
   io.out.MemToReg := controller.io.out.MemToReg
-  
+  val imm = WireDefault(0.U(32.W))
   
   switch(opcode) {
     is(3.U) { // Load type
-      isImm := true.B
-      val imm = io.in.instr(31, 20)
+      imm := io.in.instr(31, 20)
       src1 := (io.in.instr(19, 15))
       src2 := imm
       funct3 := io.in.instr(14, 12)
@@ -60,16 +59,15 @@ class DecodeStage extends Module {
     } 
 
     is(19.U) { // I-Type
-      isImm := true.B
-      val imm = io.in.instr(31, 20)
+      imm := signExtendIType(io.in.instr)
       dest := rd
       funct3 := io.in.instr(14, 12)
       funct7 := imm(9)
       src1 := io.in.instr(19, 15)
-      src2 := imm
+      src2 := 0.U
       // Determine ALU operation based on funct3 and funct7
       switch(funct3) {
-        is(0.U) { aluOp := ALUops.ALU_ADD } // ADDI
+        is(0.U) { aluOp := ALUops.ALU_ADD } // ADDI 
         is(1.U) { aluOp := ALUops.ALU_SLL } // SLLI
         is(2.U) { aluOp := ALUops.ALU_SLT } // SLTI
         is(3.U) { aluOp := ALUops.ALU_SLTU } // SLTIU
@@ -81,15 +79,15 @@ class DecodeStage extends Module {
     }
     is (23.U) { // auipc
       // TODO: find how to share pc
-      val imm = io.in.instr(31, 12)
+      imm := Cat(io.in.instr(31, 12), Fill(12, 0.U))
       dest := rd
-      src1 := Cat(imm, Fill(12, 0.U))
-      src2 := 0.U // Maybe set it to 12
+      src1 := 0.U
+      src2 := 0.U
       aluOp := ALUops.ALU_ADD
     }
     is(35.U) { // Store type
       //WIP
-      val imm = Cat(io.in.instr(31, 25), io.in.instr(11, 7))
+      imm := Cat(io.in.instr(31, 25), io.in.instr(11, 7))
       src1 := (io.in.instr(19, 15))
       src2 := io.in.instr(24, 20)
       funct3 := io.in.instr(14, 12)
@@ -97,6 +95,7 @@ class DecodeStage extends Module {
       aluOp := ALUops.ALU_ADD // Store uses addition
     } 
     is(51.U) { // R-type
+      imm := 0.U
       dest := rd
       src1 := io.in.instr(19, 15)
       src2 := io.in.instr(24, 20)
@@ -114,34 +113,32 @@ class DecodeStage extends Module {
       }
     } 
     is(55.U) { // LUI
-      val imm = io.in.instr(31, 12)
+      imm := Cat(io.in.instr(31, 12), Fill(12, 0.U))
       dest := rd
-      src1 := Cat(imm, Fill(12, 0.U))
+      src1 := 0.U
       src2 := 0.U // Maybe set it to 12
       aluOp := ALUops.ALU_ADD // LUI uses addition with 0
     }
     is(99.U) { // Branch type
       //Double check if works, and sign extension
-      val imm = Cat(io.in.instr(31, 25), io.in.instr(11, 7), 0.U(1.W))
+      imm := signExtendBType(io.in.instr)
       funct3 := io.in.instr(14, 12)
-      dest := Cat(imm(12), imm(10, 5), imm(4, 1), imm(11))
+      dest := 0.U // Branches do not write to a destination register
       src1 := io.in.instr(19, 15)
       src2 := io.in.instr(24, 20)
       aluOp := ALUops.ALU_SUB // Branches use subtraction for comparison
     }
     is(111.U) { // JAL
-      val imm = Cat(io.in.instr(31), io.in.instr(19, 12), io.in.instr(20), io.in.instr(30, 21))
-      dest := rd
-      src1 := imm
+      imm := Cat(Fill(19, io.in.instr(31)), io.in.instr(31), io.in.instr(19, 12), io.in.instr(20), io.in.instr(30, 21)) // Sign extended
+      src1 := 0.U
       src2 := 0.U
       aluOp := ALUops.ALU_ADD // JAL uses addition to calculate target address
     }
     is(103.U) { // JALR
-      // TODO: check how to handle pc
-      val imm = io.in.instr(31, 20)
+      imm := signExtendIType(io.in.instr)
       dest := rd
       src1 := io.in.instr(19, 15)
-      src2 := imm
+      src2 := 0.U
       aluOp := ALUops.ALU_ADD // JALR uses addition to calculate target address
     }
     is(115.U) { // ECALL/EBREAK
@@ -149,12 +146,8 @@ class DecodeStage extends Module {
     }
   }
 
-  when(isImm) { //Uncertain if this works with sign extension, have to run test later
-    io.out.src2 := src2
-  }.otherwise {
-    io.out.src2 := registerFile.io.readData2
-  }
-
+  io.out.src2 := registerFile.io.readData2
+  io.out.imm := imm
   io.out.aluOp := aluOp // Temporary, to be set based on instruction decoding
   io.out.src1 := registerFile.io.readData1
   io.out.dest := dest
