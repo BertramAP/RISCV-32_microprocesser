@@ -46,8 +46,12 @@ class Controller extends Module {
       io.out.RegWrite := true.B
       io.out.PCSrc := true.B
       io.out.isJump := true.B
-      
+    }
+     is("b1100111".U) { // JALR
+      io.out.RegWrite := true.B
+      io.out.isJumpr := true.B 
+     } 
   }
 }
-}
+
 

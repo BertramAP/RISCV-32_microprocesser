@@ -64,6 +64,7 @@ class ExecuteStage extends Module {
     }
 
     val ALU = Module(new ALU())
+
     ALU.io.src1 := io.in.src1
     ALU.io.src2 := io.in.src2
     ALU.io.aluOp := io.in.aluOp
@@ -74,7 +75,7 @@ class ExecuteStage extends Module {
     val jaltarget = io.in.pc + io.in.imm
     val jalrtarget = (io.in.src1 + io.in.imm) & (~1.U(32.W))
     when (io.in.isJump) {
-      io.BranchOut.branchTarget := Mux(io.in.funct3 === 0.U, jaltarget, jalrtarget)
+      io.BranchOut.branchTarget := Mux(io.in.isJumpr, jaltarget, jalrtarget)
     }
 
     io.out.aluOut := ALU.io.aluOut
