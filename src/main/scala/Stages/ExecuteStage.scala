@@ -13,8 +13,8 @@ class ExecuteStage extends Module {
     })
 
     // Forward control signals to memory stage
-    io.out.memRead := io.in.MemWrite
-    io.out.memWrite := io.in.MemRead
+    io.out.memRead := io.in.MemRead
+    io.out.memWrite := io.in.MemWrite
 
     // Forward control signals to writeback stage
     io.out.regWrite := io.in.RegWrite
@@ -47,7 +47,7 @@ class ExecuteStage extends Module {
     val ALU = Module(new ALU())
 
     ALU.io.src1 := io.in.src1
-    ALU.io.src2 := io.in.src2
+    ALU.io.src2 := Mux(io.in.ALUSrc, io.in.imm, io.in.src2)
     ALU.io.aluOp := io.in.aluOp
 
     io.BranchOut.branchTaken := (io.in.isBranch && branchCond) || (io.in.isJump || io.in.isJumpr)
