@@ -15,14 +15,17 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
     val id_rd        = Output(UInt(5.W))
     val id_imm       = Output(UInt(32.W))
     val id_regWrite  = Output(Bool())
+    val id_wbEnable  = Output(Bool()) // For debugging writeback
 
     val ex_aluOut    = Output(UInt(32.W))
     val ex_rd        = Output(UInt(5.W))
     val ex_regWrite  = Output(Bool())
+    val ex_wbEnable  = Output(Bool()) // For debugging writeback
 
     val mem_wbData  = Output(UInt(32.W))
     val mem_rd      = Output(UInt(5.W))
     val mem_regWrite= Output(Bool())
+    val mem_wbEnable= Output(Bool()) // For debugging writeback
 
     val wb_wdata    = Output(UInt(32.W))
     val wb_rd       = Output(UInt(5.W))
@@ -129,6 +132,10 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   io.wb_we := wbStage.io.rfRegWrite  
   io.led := false.B
 
+  // For debugging writeback stage
+  io.id_wbEnable := decodeStage.io.out.RegWrite
+  io.ex_wbEnable := executeStage.io.out.regWrite
+  io.mem_wbEnable := memStage.io.out.wbRegWrite
 }
 object StagesCombined extends App {
   emitVerilog(new AddiPipelineTop(Array(0x00000013), 0), Array("--target-dir", "generated"))
