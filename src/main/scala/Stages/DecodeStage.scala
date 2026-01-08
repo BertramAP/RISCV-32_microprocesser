@@ -126,7 +126,7 @@ class DecodeStage extends Module {
       dest := 0.U // Branches do not write to a destination register
       src1 := io.in.instr(19, 15)
       src2 := io.in.instr(24, 20)
-      aluOp := ALUops.ALU_SUB // Branches use subtraction for comparison
+      aluOp := ALUops.ALU_ADD // Branches use addition to calculate target address
     }
     is(111.U) { // JAL
       imm := Cat(Fill(19, io.in.instr(31)), io.in.instr(31), io.in.instr(19, 12), io.in.instr(20), io.in.instr(30, 21)) // Sign extended

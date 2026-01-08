@@ -12,10 +12,11 @@ class Controller extends Module {
   // Default values
   io.out.RegWrite := false.B
   io.out.ALUSrc := false.B
-  io.out.PCSrc := false.B
+  io.out.PCSrc := false.B 
   io.out.MemRead := false.B
   io.out.MemWrite := false.B
   io.out.MemToReg := false.B
+  io.out.Branch := false.B
 
   switch(io.opcode) {
     is("b0000011".U) { // Load
@@ -36,8 +37,14 @@ class Controller extends Module {
       io.out.RegWrite := true.B
     }
     is("b1100011".U) { // Branch
+      io.out.isBranch := true.B
       io.out.PCSrc := true.B
     }
+    is("b1101111".U) { // JAL
+      io.out.RegWrite := true.B
+      io.out.PCSrc := true.B
+      io.out.isJump := true.B
+      
   }
 }
 
