@@ -16,7 +16,9 @@ class Controller extends Module {
   io.out.MemRead := false.B
   io.out.MemWrite := false.B
   io.out.MemToReg := false.B
-  io.out.Branch := false.B
+  io.out.isBranch := false.B
+  io.out.isJump := false.B
+
 
   switch(io.opcode) {
     is("b0000011".U) { // Load
@@ -46,5 +48,6 @@ class Controller extends Module {
       io.out.isJump := true.B
       
   }
+}
 }
 
