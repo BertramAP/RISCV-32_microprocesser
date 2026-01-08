@@ -9,7 +9,9 @@ class FetchStage(code: Array[Int], PcStart: Int) extends Module {
       val out = Output(new FetchDecodeIO)
   })
 
-  val imem = VecInit(code.toIndexedSeq.map(_.U(32.W)))
+  val imem = VecInit(code.toIndexedSeq.map { word =>
+    (word & 0xFFFFFFFFL).U(32.W)
+  })
 
   //Program counter
   val Pc = RegInit(PcStart.asUInt(32.W))
