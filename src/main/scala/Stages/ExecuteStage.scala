@@ -13,8 +13,10 @@ class ExecuteStage extends Module {
     })
     
 
-    val isBranch = io.in.PCSrc // forkert
-    when (isBranch){
+    io.BranchOut.branchTarget := 0.U
+    io.BranchOut.branchTaken := false.B
+
+    when (io.in.isBranch){
       switch(io.in.funct3){
         is("b000".U){ // BEQ
           when (io.in.src1 === io.in.src2){
@@ -61,17 +63,19 @@ class ExecuteStage extends Module {
       }
     }
 
-    // calculate branch target with a new adder
+    val ALU = Module(new ALU())
+    ALU.io.src1 := io.in.src1
+    ALU.io.src2 := io.in.src2
+    ALU.io.aluOp := io.in.aluOp
+
+    when(io.BranchOut.branchTaken){
+      io.BranchOut.branchTarget := ALU.io.aluOut
+    }
     val jaltarget = io.in.pc + io.in.imm
     val jalrtarget = (io.in.src1 + io.in.imm) & (~1.U(32.W))
     when (io.in.isJump) {
-      io.BranchOut.branchTarget := Mux(io.in.isJump, jaltarget, jalrtarget)
+      io.BranchOut.branchTarget := Mux(io.in.funct3 === 0.U, jaltarget, jalrtarget)
     }
-
-    val ALU = Module(new ALU())
-
-    io.BranchOut.branchTarget := target
-    io.BranchOut.branchTaken := false.B
 
     io.out.aluOut := ALU.io.aluOut
     io.out.addrWord := ALU.io.aluOut(4, 2)

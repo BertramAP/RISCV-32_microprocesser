@@ -24,6 +24,8 @@ class DecodeExecuteIO extends Bundle {
   val RegWrite = Bool()
   val ALUSrc = Bool()
   val PCSrc = Bool()
+  val isJump = Bool()
+  val isBranch = Bool()
   val MemRead = Bool()
   val MemWrite = Bool()
   val MemToReg = Bool()
