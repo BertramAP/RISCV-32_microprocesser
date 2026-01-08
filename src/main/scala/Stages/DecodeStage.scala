@@ -29,13 +29,6 @@ class DecodeStage extends Module {
 
   
   io.out.pc := io.in.pc
-  val registerFile = Module(new RegisterFile())
-
-  registerFile.io.readRegister1 := src1
-  registerFile.io.readRegister2 := src2
-  registerFile.io.writeRegister := 0.U
-  registerFile.io.writeData := 0.U
-  registerFile.io.regWrite := false.B
 
   val controller = Module(new Controller())
   controller.io.opcode := opcode
@@ -123,7 +116,7 @@ class DecodeStage extends Module {
       dest := 0.U // Branches do not write to a destination register
       src1 := io.in.instr(19, 15)
       src2 := io.in.instr(24, 20)
-      aluOp := ALUops.ALU_ADD // Branches use addition to calculate target address
+      aluOp := ALUops.ALU_SUB // Branches use subtraction for comparison
     }
     is(111.U) { // JAL
       imm := Cat(Fill(19, io.in.instr(31)), io.in.instr(31), io.in.instr(19, 12), io.in.instr(20), io.in.instr(30, 21)) // Sign extended
@@ -146,7 +139,7 @@ class DecodeStage extends Module {
   isPC := opcode === 111.U || opcode === 23.U
   io.out.isPC := isPC
 
-  io.out.src1 := src1
+  io.out.src1 := src1 //Output register address, which gets translated in main file
   io.out.src2 := src2
   io.out.imm := imm
   io.out.aluOp := aluOp // Temporary, to be set based on instruction decoding

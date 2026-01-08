@@ -45,9 +45,9 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   val registerFile = Module(new RegisterFile())
   registerFile.io.readRegister1 := decodeStage.io.out.src1
   registerFile.io.readRegister2 := decodeStage.io.out.src2
-  registerFile.io.writeRegister := wbRd
-  registerFile.io.writeData := wbWd
-  registerFile.io.regWrite := wbRw
+  registerFile.io.writeRegister := wbRd // Wires from WB stage
+  registerFile.io.writeData := wbWd // Wires from WB stage
+  registerFile.io.regWrite := wbRw // Wires from WB stage
 
   // ID/EX pipeline register
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
