@@ -28,8 +28,9 @@ class DecodeExecuteIO extends Bundle {
   // Control signals for memory stage
   val MemRead = Bool()
   val MemWrite = Bool()
-  val isJump = Bool()
   val isBranch = Bool()
+  val isJump = Bool()
+  val isJumpr = Bool()
 
   // Control signals for writeback stage
   val RegWrite = Bool()
@@ -67,6 +68,7 @@ class ControllerExecuteIO extends Bundle {
   val RegWrite = Bool()
   val ALUSrc = Bool()
   val isJump = Bool()
+  val isJumpr = Bool()
   val isBranch = Bool()
   val PCSrc = Bool()
   val MemRead = Bool()

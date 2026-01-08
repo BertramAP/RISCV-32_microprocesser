@@ -20,12 +20,11 @@ class DecodeStage extends Module {
     val out = Output(new DecodeExecuteIO)
   })
   val aluOp = WireDefault(0.U(4.W))
-  val src1 = WireDefault(0.U(32.W))
-  val src2 = WireDefault(0.U(32.W))
-  val dest = WireDefault(0.U(32.W))
+  val src1 = WireDefault(0.U(5.W))
+  val src2 = WireDefault(0.U(5.W))
+  val dest = WireDefault(io.in.instr(11, 7))
   val funct3 = WireDefault(0.U(3.W))
   val opcode = WireDefault(io.in.instr(6, 0))
-  val rd = WireDefault(io.in.instr(11, 7))
   val funct7 = WireDefault(0.U(1.W))
 
   
@@ -46,21 +45,23 @@ class DecodeStage extends Module {
   io.out.MemRead := controller.io.out.MemRead
   io.out.MemWrite := controller.io.out.MemWrite
   io.out.MemToReg := controller.io.out.MemToReg
+  io.out.isJump := controller.io.out.isJump
+  io.out.isJumpr := controller.io.out.isJumpr
+  io.out.isBranch := controller.io.out.isBranch
+  
   val imm = WireDefault(0.U(32.W))
   
   switch(opcode) {
     is(3.U) { // Load type
-      imm := io.in.instr(31, 20)
+      imm := signExtendIType(io.in.instr)
       src1 := (io.in.instr(19, 15))
-      src2 := imm
+      src2 := 0.U
       funct3 := io.in.instr(14, 12)
-      dest := rd
       aluOp := ALUops.ALU_ADD // Load uses addition
     }
 
     is(19.U) { // I-Type
       imm := signExtendIType(io.in.instr)
-      dest := rd
       funct3 := io.in.instr(14, 12)
       funct7 := imm(9)
       src1 := io.in.instr(19, 15)
@@ -80,7 +81,6 @@ class DecodeStage extends Module {
     is (23.U) { // auipc
       // TODO: find how to share pc
       imm := Cat(io.in.instr(31, 12), Fill(12, 0.U))
-      dest := rd
       src1 := 0.U
       src2 := 0.U
       aluOp := ALUops.ALU_ADD
@@ -96,7 +96,6 @@ class DecodeStage extends Module {
     } 
     is(51.U) { // R-type
       imm := 0.U
-      dest := rd
       src1 := io.in.instr(19, 15)
       src2 := io.in.instr(24, 20)
       funct3 := io.in.instr(14, 12)
@@ -114,7 +113,6 @@ class DecodeStage extends Module {
     } 
     is(55.U) { // LUI
       imm := Cat(io.in.instr(31, 12), Fill(12, 0.U))
-      dest := rd
       src1 := 0.U
       src2 := 0.U // Maybe set it to 12
       aluOp := ALUops.ALU_ADD // LUI uses addition with 0
@@ -130,15 +128,14 @@ class DecodeStage extends Module {
     }
     is(111.U) { // JAL
       imm := Cat(Fill(19, io.in.instr(31)), io.in.instr(31), io.in.instr(19, 12), io.in.instr(20), io.in.instr(30, 21)) // Sign extended
-      src1 := 0.U
-      src2 := 0.U
+      src1 := io.in.pc
+      src2 := 4.U
       aluOp := ALUops.ALU_ADD // JAL uses addition to calculate target address
     }
     is(103.U) { // JALR
       imm := signExtendIType(io.in.instr)
-      dest := rd
-      src1 := io.in.instr(19, 15)
-      src2 := 0.U
+      src1 := io.in.instr(19, 15) // TODO: The pc needs src1 and imm to be updated
+      src2 := io.in.pc
       aluOp := ALUops.ALU_ADD // JALR uses addition to calculate target address
     }
     is(115.U) { // ECALL/EBREAK
