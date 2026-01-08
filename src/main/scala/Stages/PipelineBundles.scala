@@ -59,6 +59,8 @@ class DecodeInputIO extends Bundle {
 class ControllerExecuteIO extends Bundle {
   val RegWrite = Bool()
   val ALUSrc = Bool()
+  val isJump = Bool()
+  val isBranch = Bool()
   val PCSrc = Bool()
   val MemRead = Bool()
   val MemWrite = Bool()
