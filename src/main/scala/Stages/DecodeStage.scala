@@ -126,7 +126,14 @@ class DecodeStage extends Module {
       aluOp := ALUops.ALU_ADD // Branches use addition to calculate target address
     }
     is(111.U) { // JAL
-      imm := Cat(Fill(19, io.in.instr(31)), io.in.instr(31), io.in.instr(19, 12), io.in.instr(20), io.in.instr(30, 21)) // Sign extended
+      imm := Cat(
+        Fill(11, io.in.instr(31)),
+        io.in.instr(31),
+        io.in.instr(19, 12),
+        io.in.instr(20),
+        io.in.instr(30, 21),
+        0.U(1.W)
+      )
       src1 := 0.U // PC is to large for source register, handled by mux below
       src2 := 0.U // We have an adder for adding 4 in execute stage
       aluOp := ALUops.ALU_ADD // JAL uses addition to calculate target address

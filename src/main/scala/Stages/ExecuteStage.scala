@@ -45,8 +45,8 @@ class ExecuteStage extends Module {
 
     io.BranchOut.branchTaken := (io.in.isBranch && branchCond) || (io.in.isJump || io.in.isJumpr)
 
-    // We Could calculate jump target with ALU
-    val jaltarget = io.in.src1 + io.in.src2 
+    // Jump targets
+    val jaltarget = io.in.pc + io.in.imm
     val jalrtarget = (io.in.src1 + io.in.imm) & (~1.U(32.W))
     io.BranchOut.branchTarget := 0.U
     when(io.in.isJumpr) {
