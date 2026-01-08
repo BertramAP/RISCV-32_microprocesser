@@ -11,8 +11,14 @@ class StagesCombinedTest extends AnyFlatSpec with ChiselScalatestTester {
       0x00300193, // addi x3, x0, 3
       0x00400213, // addi x4, x0, 4
       0x00000013, // nop
-      0x00000013 // nop
-      
+      0x00000013, // nop
+      0x00000013, // nop
+      0x00000013, // nop
+      0x00000013, // nop
+      0x00000013, // nop
+      0x00000013, // nop
+      0x00000073, // ebreak
+      0x00400213 // addi x4, x0, 4 test if ebreak works
     )
     val expected = Seq(1, 2, 3, 4)
     val pcStart = 0
