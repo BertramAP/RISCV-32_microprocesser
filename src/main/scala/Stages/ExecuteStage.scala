@@ -11,7 +11,14 @@ class ExecuteStage extends Module {
       // Outputs to the Fetch stage for branch handling
       val BranchOut = Output(new FetchBranchIO) 
     })
-    
+
+    // Forward control signals to memory stage
+    io.out.memRead := io.in.MemWrite
+    io.out.memWrite := io.in.MemRed
+
+    // Forward control signals to writeback stage
+    io.out.regWrite := io.in.RegWrite
+    io.out.memToReg := io.in.MemToReg
 
     val branchCond = WireDefault(false.B)
     when (io.in.isBranch) {
