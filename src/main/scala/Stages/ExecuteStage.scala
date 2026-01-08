@@ -67,9 +67,5 @@ class ExecuteStage extends Module {
     io.out.aluOut := ALU.io.aluOut
     io.out.addrWord := ALU.io.aluOut(4, 2)
     io.out.storeData := io.in.src2
-    io.out.memRead := false.B
-    io.out.memWrite := false.B
     io.out.rd := io.in.dest(4, 0) // Truncate to 5 bits for register index
-    io.out.regWrite := true.B // For simplicity, always write back
-    io.out.memToReg := false.B
 }

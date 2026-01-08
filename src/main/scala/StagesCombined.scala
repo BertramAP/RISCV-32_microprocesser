@@ -27,6 +27,9 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
     val wb_wdata    = Output(UInt(32.W))
     val wb_rd       = Output(UInt(5.W))
     val wb_we       = Output(Bool())
+
+    // Board outputs
+    val led = Output(Bool())
   })
 
   val fetchStage = Module(new FetchStage(code, PcStart))
@@ -68,18 +71,18 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   val exMemRegWrite = RegInit(false.B)
   exMemAluOut := executeStage.io.out.aluOut
   exMemRd := idExReg.dest(4,0)
-  exMemRegWrite := false.B
+  exMemRegWrite := executeStage.io.out.regWrite
 
   
   val memStage = Module(new MemStage())
   memStage.io.in.aluOut := exMemAluOut
   memStage.io.in.addrWord := exMemAluOut(4, 2)
   memStage.io.in.storeData := exMemAluOut
-  memStage.io.in.memRead := false.B
-  memStage.io.in.memWrite := false.B
+  memStage.io.in.memRead := executeStage.io.out.memRead
+  memStage.io.in.memWrite := executeStage.io.out.memWrite
   memStage.io.in.rd := exMemRd
   memStage.io.in.regWrite := exMemRegWrite
-  memStage.io.in.memToReg := false.B
+  memStage.io.in.memToReg := executeStage.io.out.memToReg
   
   // MEM/WB pipeline registers
   val memWbData = RegInit(0.U(32.W))
@@ -124,5 +127,9 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   io.wb_wdata := wbStage.io.rfWriteData
   io.wb_rd := wbStage.io.rfWriteRd
   io.wb_we := wbStage.io.rfRegWrite  
+  io.led := false.B
 
+}
+object StagesCombined extends App {
+  emitVerilog(new AddiPipelineTop(Array(0x00000013), 0), Array("--target-dir", "generated"))
 }
