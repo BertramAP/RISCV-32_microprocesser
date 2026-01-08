@@ -31,6 +31,7 @@ class DecodeStage extends Module {
   io.out.pc := io.in.pc
 
   val controller = Module(new Controller())
+  io.out.done := controller.io.out.done
   controller.io.opcode := opcode
   io.out.RegWrite := controller.io.out.RegWrite
   io.out.ALUSrc := controller.io.out.ALUSrc
@@ -40,7 +41,7 @@ class DecodeStage extends Module {
   io.out.isJump := controller.io.out.isJump
   io.out.isJumpr := controller.io.out.isJumpr
   io.out.isBranch := controller.io.out.isBranch
-  
+
   val imm = WireDefault(0.U(32.W))
   
   switch(opcode) {

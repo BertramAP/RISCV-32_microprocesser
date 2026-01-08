@@ -18,7 +18,7 @@ class Controller extends Module {
   io.out.isBranch := false.B
   io.out.isJump := false.B
   io.out.isJumpr := false.B 
-
+  io.out.done := false.B
 
   switch(io.opcode) {
     is("b0000011".U) { // Load
@@ -50,7 +50,11 @@ class Controller extends Module {
      is("b1100111".U) { // JALR
       io.out.RegWrite := true.B
       io.out.isJumpr := true.B 
-     } 
+     }
+     is("b1110011" .U) { // ECALL/EBREAK
+      // No control signals asserted
+      io.out.done := true.B
+     }
   }
 }
 

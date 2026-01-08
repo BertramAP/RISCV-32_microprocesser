@@ -34,11 +34,13 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
     // Board outputs
     val led = Output(Bool())
   })
+  val done = WireDefault(false.B)
 
   val fetchStage = Module(new FetchStage(code, PcStart))
   val wbRd = WireDefault(0.U(5.W))
   val wbWd = WireDefault(0.U(32.W))
   val wbRw = WireDefault(false.B)
+  fetchStage.io.in.done := done
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
   ifIdReg := fetchStage.io.out
@@ -47,6 +49,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
 
   val decodeStage = Module(new DecodeStage())
   decodeStage.io.in := ifIdReg
+  done := decodeStage.io.out.done
   
   val registerFile = Module(new RegisterFile())
   registerFile.io.readRegister1 := decodeStage.io.out.src1
@@ -136,6 +139,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   io.id_wbEnable := decodeStage.io.out.RegWrite
   io.ex_wbEnable := executeStage.io.out.regWrite
   io.mem_wbEnable := memStage.io.out.wbRegWrite
+
 }
 object StagesCombined extends App {
   emitVerilog(new AddiPipelineTop(Array(0x00000013), 0), Array("--target-dir", "generated"))

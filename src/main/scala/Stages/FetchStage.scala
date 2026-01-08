@@ -16,7 +16,7 @@ class FetchStage(code: Array[Int], PcStart: Int) extends Module {
   //Program counter
   val Pc = RegInit(PcStart.asUInt(32.W))
   val nextPc = Mux(io.in.branchTaken, io.in.branchTarget, Pc + 4.U)
-  Pc := nextPc
+  Pc := Mux(io.in.done, Pc, nextPc)
 
   // Registers
   val pcReg = RegInit(0.U(32.W))
