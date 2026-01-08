@@ -13,7 +13,6 @@ class FetchBranchIO extends Bundle {
 }
 
 class DecodeExecuteIO extends Bundle {
-  val aluOp  = UInt(4.W)
   val src1   = UInt(32.W)
   val src2   = UInt(32.W)
   val imm    = UInt(32.W)
@@ -21,13 +20,19 @@ class DecodeExecuteIO extends Bundle {
   val funct3 = UInt(3.W)
   val funct7 = UInt(1.W)
   val pc = UInt(32.W)
-  val RegWrite = Bool()
+
+  // Control signals for execute stage
   val ALUSrc = Bool()
-  val PCSrc = Bool()
-  val isJump = Bool()
-  val isBranch = Bool()
+  val aluOp  = UInt(4.W)
+
+  // Control signals for memory stage
   val MemRead = Bool()
   val MemWrite = Bool()
+  val isJump = Bool()
+  val isBranch = Bool()
+
+  // Control signals for writeback stage
+  val RegWrite = Bool()
   val MemToReg = Bool()
 }
 
