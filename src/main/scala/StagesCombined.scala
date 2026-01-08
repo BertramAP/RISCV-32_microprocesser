@@ -5,32 +5,6 @@ import chisel3.util._
 
 class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   val io = IO(new Bundle {
-    // debug outputs for each stage
-    val if_pc        = Output(UInt(32.W))
-    val if_instr     = Output(UInt(32.W))
-
-    val ifid_instr   = Output(UInt(32.W))
-
-    val id_rs1       = Output(UInt(5.W))
-    val id_rd        = Output(UInt(5.W))
-    val id_imm       = Output(UInt(32.W))
-    val id_regWrite  = Output(Bool())
-    val id_wbEnable  = Output(Bool()) // For debugging writeback
-
-    val ex_aluOut    = Output(UInt(32.W))
-    val ex_rd        = Output(UInt(5.W))
-    val ex_regWrite  = Output(Bool())
-    val ex_wbEnable  = Output(Bool()) // For debugging writeback
-
-    val mem_wbData  = Output(UInt(32.W))
-    val mem_rd      = Output(UInt(5.W))
-    val mem_regWrite= Output(Bool())
-    val mem_wbEnable= Output(Bool()) // For debugging writeback
-
-    val wb_wdata    = Output(UInt(32.W))
-    val wb_rd       = Output(UInt(5.W))
-    val wb_we       = Output(Bool())
-
     // Board outputs
     val led = Output(Bool())
   })
@@ -42,8 +16,6 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
   ifIdReg := fetchStage.io.out
-  io.if_pc := fetchStage.io.out.pc
-  io.if_instr := fetchStage.io.out.instr
 
   val decodeStage = Module(new DecodeStage())
   decodeStage.io.in := ifIdReg
@@ -63,7 +35,6 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
 
   val executeStage = Module(new ExecuteStage())
   executeStage.io.in := idExReg
-  io.ex_aluOut := executeStage.io.out.aluOut
   fetchStage.io.in.branchTaken := executeStage.io.BranchOut.branchTaken
   fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
 
@@ -112,31 +83,23 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   wbRd := wbStage.io.rfWriteRd
   wbWd := wbStage.io.rfWriteData
   wbRw := wbStage.io.rfRegWrite
-  // Debug outputs
-  io.ifid_instr := ifIdReg.instr
 
-  io.id_rs1 := 0.U
-  io.id_rd := idExReg.dest(4,0)
-  io.id_imm := idExReg.src2
-  io.id_regWrite := exMemRegWrite
-
-  io.ex_rd := exMemRd
-  io.ex_regWrite := exMemRegWrite
-
-  io.mem_wbData := memWbData
-  io.mem_rd := memWbRd
-  io.mem_regWrite := memWbRegWrite
-
-  io.wb_wdata := wbStage.io.rfWriteData
-  io.wb_rd := wbStage.io.rfWriteRd
-  io.wb_we := wbStage.io.rfRegWrite  
-  io.led := false.B
-
-  // For debugging writeback stage
-  io.id_wbEnable := decodeStage.io.out.RegWrite
-  io.ex_wbEnable := executeStage.io.out.regWrite
-  io.mem_wbEnable := memStage.io.out.wbRegWrite
+  // LED Board Hello World: Use a register to hold the LED state
+  val ledReg = RegInit(false.B)
+  when(wbRw && wbRd === 4.U) {
+    ledReg := wbWd(0)
+  }
+  io.led := ledReg
 }
+
 object StagesCombined extends App {
-  emitVerilog(new AddiPipelineTop(Array(0x00000013), 0), Array("--target-dir", "generated"))
+  val CodeToBeExecuted = Array(
+      0x00100213, // addi x4, x0, 1
+      0x00000013, // addi x0, x0, 0 NOP 
+      0x00000213, // addi x4, x0, 0
+      0x00000013, // addi x0, x0, 0 NOP
+      0x00000013, // addi x0, x0, 0 NOP 
+      0xFE0000C3  // beq x0, x0, -16 (Loop back to start)
+    )
+  emitVerilog(new AddiPipelineTop(CodeToBeExecuted, 0), Array("--target-dir", "generated"))
 }

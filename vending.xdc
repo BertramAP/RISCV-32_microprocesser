@@ -11,7 +11,7 @@ set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 3.3 [current_design]
 
 ##USB-RS232 Interface
-set_property PACKAGE_PIN A18 [get_ports io_tx]
+#set_property PACKAGE_PIN A18 [get_ports io_tx]
 #set_property PACKAGE_PIN B18 [get_ports io_rx]
 
 #set_property PACKAGE_PIN B18 [get_ports RsRx]
@@ -67,7 +67,7 @@ set_property PACKAGE_PIN U16 [get_ports {io_led}]
 # BTN1
 #set_property PACKAGE_PIN A17 [get_ports {io_coin5}]
 # BTN2
-set_property PACKAGE_PIN C15 [get_ports {io_buy}]
+#set_property PACKAGE_PIN C15 [get_ports {io_buy}]
 # BTN3 -  can be used as manual clock
 #set_property PACKAGE_PIN C16 [get_ports {io_btn[3]}]
 
