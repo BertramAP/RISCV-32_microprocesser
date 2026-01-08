@@ -70,7 +70,6 @@ class ControllerExecuteIO extends Bundle {
   val isJump = Bool()
   val isJumpr = Bool()
   val isBranch = Bool()
-  val PCSrc = Bool()
   val MemRead = Bool()
   val MemWrite = Bool()
   val MemToReg = Bool()

@@ -47,6 +47,8 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   val executeStage = Module(new ExecuteStage())
   executeStage.io.in := idExReg
   io.ex_aluOut := executeStage.io.out.aluOut
+  fetchStage.io.in.branchTaken := executeStage.io.BranchOut.branchTaken
+  fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
 
   // EX/MEM pipeline registers (simple set for current minimal pipeline)
   val exMemAluOut = RegInit(0.U(32.W))
