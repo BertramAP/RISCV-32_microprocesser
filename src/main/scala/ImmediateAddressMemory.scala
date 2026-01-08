@@ -57,6 +57,16 @@ class ImmediateAddressMemoryTop extends Module {
 
   val mem = Module(new MemStage(8))
   mem.io.in := exmem
+  val wbStage = Module(new WritebackStage())
+  wbStage.io.in := mem.io.out
+
+  val rf = Module(new RegisterFile())
+  rf.io.readRegister1 := 0.U
+  rf.io.readRegister2 := 0.U
+  rf.io.writeRegister := wbStage.io.rfWriteRd
+  rf.io.writeData     := wbStage.io.rfWriteData
+  rf.io.regWrite      := wbStage.io.rfRegWrite
+  
 
   io.memData := mem.io.out.memData
   io.dbgMem  := mem.io.dbgMem  

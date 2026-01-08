@@ -92,11 +92,15 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   memWbMemToReg := memStage.io.out.wbMemToReg
   
   val wbStage = Module(new WritebackStage())
-  wbStage.io.aluData := exMemAluOut
-  wbStage.io.memData := memWbData
-  wbStage.io.memToReg := memWbMemToReg
-  wbStage.io.wbRd := memWbRd
-  wbStage.io.wbRegWrite := memWbRegWrite
+
+  val memWbWire = Wire(new MemWbIO)
+  memWbWire.memData    := memWbData
+  memWbWire.aluOut     := exMemAluOut        // or memStage.io.out.aluOut if you prefer
+  memWbWire.wbRd       := memWbRd
+  memWbWire.wbRegWrite := memWbRegWrite
+  memWbWire.wbMemToReg := memWbMemToReg
+
+  wbStage.io.in := memWbWire
   
 
   wbRd := wbStage.io.rfWriteRd
