@@ -13,52 +13,26 @@ class ExecuteStage extends Module {
     })
     
 
-    io.BranchOut.branchTarget := 0.U
-    io.BranchOut.branchTaken := false.B
-
-    when (io.in.isBranch){
-      switch(io.in.funct3){
-        is("b000".U){ // BEQ
-          when (io.in.src1 === io.in.src2){
-            io.BranchOut.branchTaken := true.B
-          } .otherwise {
-            io.BranchOut.branchTaken := false.B
-          }
+    val branchCond = WireDefault(false.B)
+    when (io.in.isBranch) {
+      switch(io.in.funct3) {
+        is("b000".U) { // BEQ
+          branchCond := io.in.src1 === io.in.src2
         }
-        is("b001".U){ // BNE
-          when (io.in.src1 =/= io.in.src2){
-            io.BranchOut.branchTaken := true.B
-          } .otherwise {
-            io.BranchOut.branchTaken := false.B
-          }
+        is("b001".U) { // BNE
+          branchCond := io.in.src1 =/= io.in.src2
         }
-        is("b100".U){ // BLT
-          when (io.in.src1.asSInt < io.in.src2.asSInt){
-            io.BranchOut.branchTaken := true.B
-          } .otherwise {
-            io.BranchOut.branchTaken := false.B
-          }
+        is("b100".U) { // BLT
+          branchCond := io.in.src1.asSInt < io.in.src2.asSInt
         }
-        is("b101".U){ // BGE
-          when (io.in.src1.asSInt >= io.in.src2.asSInt){
-            io.BranchOut.branchTaken := true.B
-          } .otherwise {
-            io.BranchOut.branchTaken := false.B
-          }
+        is("b101".U) { // BGE
+          branchCond := io.in.src1.asSInt >= io.in.src2.asSInt
         }
-        is("b110".U){ // BLTU
-          when (io.in.src1 < io.in.src2){
-            io.BranchOut.branchTaken := true.B
-          } .otherwise {
-            io.BranchOut.branchTaken := false.B
-          }
+        is("b110".U) { // BLTU
+          branchCond := io.in.src1 < io.in.src2
         }
-        is("b111".U){ // BGEU
-          when (io.in.src1 >= io.in.src2){
-            io.BranchOut.branchTaken := true.B
-          } .otherwise {
-            io.BranchOut.branchTaken := false.B
-          }
+        is("b111".U) { // BGEU
+          branchCond := io.in.src1 >= io.in.src2
         }
       }
     }
@@ -69,14 +43,19 @@ class ExecuteStage extends Module {
     ALU.io.src2 := io.in.src2
     ALU.io.aluOp := io.in.aluOp
 
-    when(io.BranchOut.branchTaken){
-      io.BranchOut.branchTarget := ALU.io.aluOut
-    }
-    val jaltarget = io.in.pc + io.in.imm
+    io.BranchOut.branchTaken := (io.in.isBranch && branchCond) || (io.in.isJump || io.in.isJumpr)
+
+    // We Could calculate jump target with ALU
+    val jaltarget = io.in.src1 + io.in.src2 
     val jalrtarget = (io.in.src1 + io.in.imm) & (~1.U(32.W))
-    when (io.in.isJump) {
-      io.BranchOut.branchTarget := Mux(io.in.isJumpr, jaltarget, jalrtarget)
-    }
+    io.BranchOut.branchTarget := 0.U
+    when(io.in.isJumpr) {
+      io.BranchOut.branchTarget := jalrtarget
+    } .elsewhen(io.in.isJump) {
+      io.BranchOut.branchTarget := jaltarget
+    } .elsewhen(io.in.isBranch && branchCond) {
+      io.BranchOut.branchTarget := io.in.pc + io.in.imm
+    } 
 
     io.out.aluOut := ALU.io.aluOut
     io.out.addrWord := ALU.io.aluOut(4, 2)

@@ -17,7 +17,7 @@ class DecodeStage extends Module {
     // Inputs from the Fetch stage
     val in = Input(new DecodeInputIO)
     // Outputs to the Execute stage
-    val out = Output(new DecodeExecuteIO)
+    val out = Output(new DecodeOutputsIO)
   })
   val aluOp = WireDefault(0.U(4.W))
   val src1 = WireDefault(0.U(5.W))
@@ -127,14 +127,14 @@ class DecodeStage extends Module {
     }
     is(111.U) { // JAL
       imm := Cat(Fill(19, io.in.instr(31)), io.in.instr(31), io.in.instr(19, 12), io.in.instr(20), io.in.instr(30, 21)) // Sign extended
-      src1 := io.in.pc
-      src2 := 4.U
+      src1 := 0.U // PC is to large for source register, handled by mux below
+      src2 := 0.U // We have an adder for adding 4 in execute stage
       aluOp := ALUops.ALU_ADD // JAL uses addition to calculate target address
     }
     is(103.U) { // JALR
       imm := signExtendIType(io.in.instr)
       src1 := io.in.instr(19, 15) // TODO: The pc needs src1 and imm to be updated
-      src2 := io.in.pc
+      src2 := 0.U //
       aluOp := ALUops.ALU_ADD // JALR uses addition to calculate target address
     }
     is(115.U) { // ECALL/EBREAK
@@ -142,10 +142,14 @@ class DecodeStage extends Module {
     }
   }
 
-  io.out.src2 := registerFile.io.readData2
+  val isPC = Wire(Bool())
+  isPC := opcode === 111.U || opcode === 23.U
+  io.out.isPC := isPC
+
+  io.out.src1 := src1
+  io.out.src2 := src2
   io.out.imm := imm
   io.out.aluOp := aluOp // Temporary, to be set based on instruction decoding
-  io.out.src1 := registerFile.io.readData1
   io.out.dest := dest
   io.out.funct3 := funct3
   io.out.funct7 := funct7
