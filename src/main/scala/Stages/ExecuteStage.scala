@@ -62,7 +62,7 @@ class ExecuteStage extends Module {
     }
 
     // calculate branch target with a new adder
-    val jaltarget := io.in.pc + io.in.imm
+    val jaltarget = io.in.pc + io.in.imm
     val jalrtarget = (io.in.src1 + io.in.imm) & (~1.U(32.W))
     when (io.in.isJump) {
       io.BranchOut.branchTarget := Mux(io.in.isJump, jaltarget, jalrtarget)
