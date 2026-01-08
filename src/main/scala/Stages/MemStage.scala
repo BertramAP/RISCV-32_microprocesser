@@ -11,11 +11,14 @@ class MemStage(depthWords: Int = 8) extends Module {
 
     // to MEM/WB
     val out = Output(new MemWbIO)
+    val dbgMem = Output(Vec(8, UInt(32.W)))
   })
 
   val dmem = RegInit(VecInit(Seq.fill(8)(0.U(32.W))))
 
   val loadData = dmem(io.in.addrWord)
+
+
 
   when (io.in.memWrite) {
     dmem(io.in.addrWord) := io.in.storeData
@@ -26,4 +29,5 @@ io.out.aluOut  := io.in.aluOut
 io.out.wbRd       := io.in.rd
 io.out.wbRegWrite := io.in.regWrite
 io.out.wbMemToReg := io.in.memToReg
+io.dbgMem := dmem
 }
