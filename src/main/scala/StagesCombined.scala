@@ -7,6 +7,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   val io = IO(new Bundle {
     // Board outputs
     val led = Output(Bool())
+    val led2 = Output(Bool())
   })
 
   val fetchStage = Module(new FetchStage(code, PcStart))
@@ -90,6 +91,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
     ledReg := wbWd(0)
   }
   io.led := ledReg
+  io.led2 := true.B
 }
 
 object StagesCombined extends App {

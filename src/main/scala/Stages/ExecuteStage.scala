@@ -64,7 +64,7 @@ class ExecuteStage extends Module {
       io.BranchOut.branchTarget := io.in.pc + io.in.imm
     } 
 
-    io.out.aluOut := ALU.io.aluOut
+    io.out.aluOut := Mux(io.in.isJump || io.in.isJumpr, io.in.pc + 4.U, ALU.io.aluOut)
     io.out.addrWord := ALU.io.aluOut(4, 2)
     io.out.storeData := io.in.src2
     io.out.rd := io.in.dest(4, 0) // Truncate to 5 bits for register index
