@@ -3,7 +3,7 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
+class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val io = IO(new Bundle {
     // debug outputs for each stage
     val if_pc        = Output(UInt(32.W))
@@ -32,10 +32,14 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
     val wb_rd       = Output(UInt(5.W))
     val wb_wbEnable = Output(Bool())
 
+    val done = Output(Bool())
+    val debug_regFile = Output(Vec(32, UInt(32.W)))
+
     // Board outputs
     val led = Output(Bool())
   })
   val done = WireDefault(false.B)
+  io.done := done
 
   val fetchStage = Module(new FetchStage(code, PcStart))
   val wbRd = WireDefault(0.U(5.W))
@@ -59,6 +63,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   registerFile.io.writeData := wbWd // Wires from WB stage
   registerFile.io.regWrite := wbRw // Wires from WB stage
   io.x1Full := registerFile.io.x1Full // For debugging ADDI
+  io.debug_regFile := registerFile.io.debug_registers
 
   // ID/EX pipeline register
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
@@ -115,5 +120,5 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
 
 }
 object StagesCombined extends App {
-  emitVerilog(new AddiPipelineTop(Array(0x00000013), 0), Array("--target-dir", "generated"))
+  emitVerilog(new BenteTop(Array(0x00000013), 0), Array("--target-dir", "generated"))
 }

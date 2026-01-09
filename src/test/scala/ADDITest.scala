@@ -1,7 +1,7 @@
 import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
-import stages.AddiPipelineTop
+import stages.BenteTop
 
 class ADDITest extends AnyFlatSpec with ChiselScalatestTester {
   "ADDI Test" should "Correctly calculate the result of ADDI and save result to x1" in {
@@ -16,8 +16,8 @@ class ADDITest extends AnyFlatSpec with ChiselScalatestTester {
     // Whether to print actual outputs for each stage
     val debug = true
 
-    test( new AddiPipelineTop(program, 0) ) { dut =>
-      for (i <- 0 until 10  ) {
+    test( new BenteTop(program, 0) ) { dut =>
+      for (i <- 0 until 7) {
 
         if (debug) {
           println()
@@ -26,6 +26,7 @@ class ADDITest extends AnyFlatSpec with ChiselScalatestTester {
           println("Writeback signal: " + dut.io.wb_wbEnable.peek().litValue )
           println("Writeback data:   " + dut.io.wb_wdata.peek().litValue )
           println("ALU out:          " + dut.io.ex_aluOut.peek().litValue)
+          println("Data in x1:      " + dut.io.debug_regFile(1).peek().litValue)
         }
         dut.clock.step(1)
       }

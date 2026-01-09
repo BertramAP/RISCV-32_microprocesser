@@ -1,7 +1,7 @@
 import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
-import stages.AddiPipelineTop
+import stages.BenteTop
 
 class WriteBackTest extends AnyFlatSpec with ChiselScalatestTester {
   "WriteBackTest" should "Correctly propagate control signal" in {
@@ -27,7 +27,7 @@ class WriteBackTest extends AnyFlatSpec with ChiselScalatestTester {
     // Whether to print actual outputs for each stage
     val debug = false
 
-    test( new AddiPipelineTop(program, 0) ) { dut =>
+    test( new BenteTop(program, 0) ) { dut =>
       for (i <- 0 until 7) {
         val currentValues = Array(
           dut.io.id_wbEnable.peek().litValue,
