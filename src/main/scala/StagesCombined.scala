@@ -29,7 +29,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
 
     val wb_wdata    = Output(UInt(32.W))
     val wb_rd       = Output(UInt(5.W))
-    val wb_we       = Output(Bool())
+    val wb_wbEnable = Output(Bool())
 
     // Board outputs
     val led = Output(Bool())
@@ -131,14 +131,14 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   io.mem_regWrite := memWbRegWrite
 
   io.wb_wdata := wbStage.io.rfWriteData
-  io.wb_rd := wbStage.io.rfWriteRd
-  io.wb_we := wbStage.io.rfRegWrite  
+  io.wb_rd := wbStage.io.rfWriteRd 
   io.led := false.B
 
   // For debugging writeback stage
   io.id_wbEnable := decodeStage.io.out.RegWrite
   io.ex_wbEnable := executeStage.io.out.regWrite
   io.mem_wbEnable := memStage.io.out.wbRegWrite
+  io.wb_wbEnable := wbStage.io.rfRegWrite
 
 }
 object StagesCombined extends App {
