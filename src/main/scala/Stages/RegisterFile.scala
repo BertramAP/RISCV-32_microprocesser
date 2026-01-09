@@ -41,8 +41,8 @@ class RegisterFile extends Module {
         when ( io.writeRegister === 1.U ) {
             io.x1Full := io.writeData =/= 0.U
         }
-        .otherwise { io.x1Full := io.writeData := false }
+        .otherwise { io.x1Full := io.writeData }
     }
-    .otherwise { io.x1Full := register(1) =/= 0.U }
+    .otherwise { io.x1Full := registers(1) =/= 0.U }
     // ^^^For debugging^^^
 }

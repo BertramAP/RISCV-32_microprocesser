@@ -26,9 +26,8 @@ class WriteBackTest extends AnyFlatSpec with ChiselScalatestTester {
 
     // Whether to print actual outputs for each stage
     val debug = false
-    val pcStart = 0
 
-    test( new AddiPipelineTop(program, pcStart) ) { dut =>
+    test( new AddiPipelineTop(program, 0) ) { dut =>
       for (i <- 0 until 7) {
         val currentValues = Array(
           dut.io.id_wbEnable.peek().litValue,
