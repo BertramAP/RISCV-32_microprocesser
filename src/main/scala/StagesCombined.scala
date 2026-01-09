@@ -16,6 +16,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
     val id_imm       = Output(UInt(32.W))
     val id_regWrite  = Output(Bool())
     val id_wbEnable  = Output(Bool()) // For debugging writeback
+    val x1Full       = Output(Bool()) // For debugging ADDI
 
     val ex_aluOut    = Output(UInt(32.W))
     val ex_rd        = Output(UInt(5.W))
@@ -29,7 +30,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
 
     val wb_wdata    = Output(UInt(32.W))
     val wb_rd       = Output(UInt(5.W))
-    val wb_we       = Output(Bool())
+    val wb_wbEnable = Output(Bool())
 
     // Board outputs
     val led = Output(Bool())
@@ -57,6 +58,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   registerFile.io.writeRegister := wbRd // Wires from WB stage
   registerFile.io.writeData := wbWd // Wires from WB stage
   registerFile.io.regWrite := wbRw // Wires from WB stage
+  io.x1Full := registerFile.io.x1Full // For debugging ADDI
 
   // ID/EX pipeline register
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
@@ -71,45 +73,20 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
 
   
-  // EX/MEM pipeline registers (simple set for current minimal pipeline)
-  val exMemAluOut = RegInit(0.U(32.W))
-  val exMemRd = RegInit(0.U(5.W))
-  val exMemRegWrite = RegInit(false.B)
-  exMemAluOut := executeStage.io.out.aluOut
-  exMemRd := idExReg.dest(4,0)
-  exMemRegWrite := executeStage.io.out.regWrite
+  // EX/MEM pipeline registers 
+  val exMemReg = RegInit(0.U.asTypeOf(new ExecuteMemIO))
+  exMemReg := executeStage.io.out
 
   
   val memStage = Module(new MemStage())
-  memStage.io.in.aluOut := exMemAluOut
-  memStage.io.in.addrWord := exMemAluOut(4, 2)
-  memStage.io.in.storeData := exMemAluOut
-  memStage.io.in.memRead := executeStage.io.out.memRead
-  memStage.io.in.memWrite := executeStage.io.out.memWrite
-  memStage.io.in.rd := exMemRd
-  memStage.io.in.regWrite := exMemRegWrite
-  memStage.io.in.memToReg := executeStage.io.out.memToReg
+  memStage.io.in := exMemReg
   
-  // MEM/WB pipeline registers
-  val memWbData = RegInit(0.U(32.W))
-  val memWbRd = RegInit(0.U(5.W))
-  val memWbRegWrite = RegInit(false.B)
-  val memWbMemToReg = RegInit(false.B)
-  memWbData := memStage.io.out.memData
-  memWbRd := memStage.io.out.wbRd
-  memWbRegWrite := memStage.io.out.wbRegWrite
-  memWbMemToReg := memStage.io.out.wbMemToReg
+  // MEM/WB pipeline register
+  val memWbReg = RegInit(0.U.asTypeOf(new MemWbIO))
+  memWbReg := memStage.io.out
   
   val wbStage = Module(new WritebackStage())
-
-  val memWbWire = Wire(new MemWbIO)
-  memWbWire.memData    := memWbData
-  memWbWire.aluOut     := exMemAluOut        // or memStage.io.out.aluOut if you prefer
-  memWbWire.wbRd       := memWbRd
-  memWbWire.wbRegWrite := memWbRegWrite
-  memWbWire.wbMemToReg := memWbMemToReg
-
-  wbStage.io.in := memWbWire
+  wbStage.io.in := memWbReg
   
 
   wbRd := wbStage.io.rfWriteRd
@@ -121,24 +98,24 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   io.id_rs1 := 0.U
   io.id_rd := idExReg.dest(4,0)
   io.id_imm := idExReg.src2
-  io.id_regWrite := exMemRegWrite
+  io.id_regWrite := exMemReg.regWrite
 
-  io.ex_rd := exMemRd
-  io.ex_regWrite := exMemRegWrite
+  io.ex_rd := exMemReg.rd
+  io.ex_regWrite := exMemReg.regWrite
 
-  io.mem_wbData := memWbData
-  io.mem_rd := memWbRd
-  io.mem_regWrite := memWbRegWrite
+  io.mem_wbData := memWbReg.memData
+  io.mem_rd := memWbReg.wbRd
+  io.mem_regWrite := memWbReg.wbRegWrite
 
   io.wb_wdata := wbStage.io.rfWriteData
-  io.wb_rd := wbStage.io.rfWriteRd
-  io.wb_we := wbStage.io.rfRegWrite  
+  io.wb_rd := wbStage.io.rfWriteRd 
   io.led := false.B
 
   // For debugging writeback stage
   io.id_wbEnable := decodeStage.io.out.RegWrite
   io.ex_wbEnable := executeStage.io.out.regWrite
   io.mem_wbEnable := memStage.io.out.wbRegWrite
+  io.wb_wbEnable := wbStage.io.rfRegWrite
 
 }
 object StagesCombined extends App {
