@@ -3,7 +3,7 @@ import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 import stages.BenteTop
 
-class StagesCombinedTest extends AnyFlatSpec with ChiselScalatestTester {
+class BenteTopTest extends AnyFlatSpec with ChiselScalatestTester {
   "BenteTop" should "execute a sequence of addi instructions" in {
     val program = Array(
       0x00100093, // addi x1, x0, 1
@@ -23,7 +23,8 @@ class StagesCombinedTest extends AnyFlatSpec with ChiselScalatestTester {
     val pcStart = 0
     test(new BenteTop(program, pcStart)).withAnnotations(Seq(WriteVcdAnnotation)) { c =>
       // An instruction's result is written back to the register file in the WB stage.
-      // For a 5-stage pipeline, the first instruction writes back at the end of cycle 4. We have a extra register somewhere But it works with 5 for now.
+      // For a 5-stage pipeline, the first instruction writes back at the end of cycle 4. 
+      // We have a extra register somewhere But it works with 5 for now.
       c.clock.step(5) // Run until the end of cycle 3
 
       // At end of cycle 4, x1 should be 1
