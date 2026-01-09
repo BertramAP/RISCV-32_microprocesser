@@ -79,6 +79,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
 
   val memStage = Module(new MemStage())
   memStage.io.in := exMemReg
+  memStage.io.in := exMemReg
   
   // MEM/WB pipeline registers
   val memWriteBackReg = RegInit(0.U.asTypeOf(new MemWbIO))
