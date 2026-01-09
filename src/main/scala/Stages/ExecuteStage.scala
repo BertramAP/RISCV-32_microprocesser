@@ -58,8 +58,10 @@ class ExecuteStage extends Module {
     io.BranchOut.branchTarget := 0.U
     when(io.in.isJumpr) {
       io.BranchOut.branchTarget := jalrtarget
+      io.out.aluOut := io.in.pc + 4.U // return address for JAL in aluOut
     } .elsewhen(io.in.isJump) {
       io.BranchOut.branchTarget := jaltarget
+      io.out.aluOut := io.in.pc + 4.U 
     } .elsewhen(io.in.isBranch && branchCond) {
       io.BranchOut.branchTarget := io.in.pc + io.in.imm
     } 
