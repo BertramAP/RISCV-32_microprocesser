@@ -12,6 +12,7 @@ class RegisterFile extends Module {
         val writeData = Input( UInt(32.W) )
         val readData1 = Output( UInt(32.W) )
         val readData2 = Output( UInt(32.W) )
+        val x1Full    = Output( Bool() ) // For debugging ADDI
     })
 
     val registers = RegInit(VecInit( Seq.fill(32)(0.U(32.W)) ))
@@ -33,4 +34,15 @@ class RegisterFile extends Module {
             io.readData2 := io.writeData
         }
     }
+
+
+    // For debugging only (Has data forwarding for read/write on same cycle)
+    when ( writeThisCycle ) {
+        when ( io.writeRegister === 1.U ) {
+            io.x1Full := io.writeData =/= 0.U
+        }
+        .otherwise { io.x1Full := io.writeData := false }
+    }
+    .otherwise { io.x1Full := register(1) =/= 0.U }
+    // ^^^For debugging^^^
 }

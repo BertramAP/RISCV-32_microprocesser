@@ -16,6 +16,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
     val id_imm       = Output(UInt(32.W))
     val id_regWrite  = Output(Bool())
     val id_wbEnable  = Output(Bool()) // For debugging writeback
+    val x1Full       = Output(Bool()) // For debugging ADDI
 
     val ex_aluOut    = Output(UInt(32.W))
     val ex_rd        = Output(UInt(5.W))
@@ -57,6 +58,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
   registerFile.io.writeRegister := wbRd // Wires from WB stage
   registerFile.io.writeData := wbWd // Wires from WB stage
   registerFile.io.regWrite := wbRw // Wires from WB stage
+  io.x1Full := registerFile.io.x1Full // For debugging ADDI
 
   // ID/EX pipeline register
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
