@@ -26,7 +26,7 @@ class MemStage(depthWords: Int = 8) extends Module {
     dmem(io.in.addrWord) := io.in.storeData
   }
 
-  io.out.memData := Mux(io.in.memRead, loadData, 0.U) // or just loadData
+  io.out.memData := loadData
   io.out.aluOut  := io.in.aluOut
   io.out.wbRd       := io.in.rd
   io.out.wbRegWrite := io.in.regWrite

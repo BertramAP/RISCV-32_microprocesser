@@ -33,9 +33,9 @@ class ImmediateAddressMemoryTest extends AnyFlatSpec with ChiselScalatestTester 
       // lw x7, 12(x0)
       val LW_X7_12_X0 = "h00C02383".U
 
-      val x2_val = "hDEADBEEF".U
-      val x3_val = "hDEADDEAD".U  
-      val x4_val = "hBEEFBEEF".U
+      val x2_val = "hAAAAAAAA".U
+      val x3_val = "hBBBBBBBB".U  
+      val x4_val = "hCCCCCCCC".U
 
       // reset
       dut.reset.poke(true.B)
