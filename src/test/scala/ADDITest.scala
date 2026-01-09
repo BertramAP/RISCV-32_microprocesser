@@ -14,17 +14,19 @@ class ADDITest extends AnyFlatSpec with ChiselScalatestTester {
     )
 
     // Whether to print actual outputs for each stage
-    val debug = false
+    val debug = true
 
     test( new AddiPipelineTop(program, 0) ) { dut =>
-      for (i <- 0 until 7) {
+      for (i <- 0 until 10  ) {
 
         if (debug) {
           println()
           println("Clock cycle: " + i)
-          println("Data in x1:      " + dut.io.x1Full.peek().litValue )
+          println("Data in x1:       " + dut.io.x1Full.peek().litValue )
+          println("Writeback signal: " + dut.io.wb_wbEnable.peek().litValue )
+          println("Writeback data:   " + dut.io.wb_wdata.peek().litValue )
+          println("ALU out:          " + dut.io.ex_aluOut.peek().litValue)
         }
-
         dut.clock.step(1)
       }
     }

@@ -90,11 +90,11 @@ class MemWbIO extends Bundle {
     val wbMemToReg = Bool()
 }
 
-
 class DecodeInputIO extends Bundle {
   val instr = UInt(32.W)
   val pc    = UInt(32.W)
 }
+
 class ControllerExecuteIO extends Bundle {
   val RegWrite = Bool()
   val ALUSrc = Bool()

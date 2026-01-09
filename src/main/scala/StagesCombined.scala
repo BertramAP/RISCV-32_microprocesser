@@ -23,7 +23,7 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
     val ex_regWrite  = Output(Bool())
     val ex_wbEnable  = Output(Bool()) // For debugging writeback
 
-    val mem_wbData  = Output(UInt(32.W))
+    val mem_ALUOut  = Output(UInt(32.W))
     val mem_rd      = Output(UInt(5.W))
     val mem_regWrite= Output(Bool())
     val mem_wbEnable= Output(Bool()) // For debugging writeback
@@ -74,73 +74,43 @@ class AddiPipelineTop(code: Array[Int], PcStart: Int) extends Module {
 
   
   // EX/MEM pipeline registers (simple set for current minimal pipeline)
-  val exMemAluOut = RegInit(0.U(32.W))
-  val exMemRd = RegInit(0.U(5.W))
-  val exMemRegWrite = RegInit(false.B)
-  exMemAluOut := executeStage.io.out.aluOut
-  exMemRd := idExReg.dest(4,0)
-  exMemRegWrite := executeStage.io.out.regWrite
+  val exMemReg = RegInit(0.U.asTypeOf(new ExecuteMemIO))
+  exMemReg := executeStage.io.out
 
-  
   val memStage = Module(new MemStage())
-  memStage.io.in.aluOut := exMemAluOut
-  memStage.io.in.addrWord := exMemAluOut(4, 2)
-  memStage.io.in.storeData := exMemAluOut
-  memStage.io.in.memRead := executeStage.io.out.memRead
-  memStage.io.in.memWrite := executeStage.io.out.memWrite
-  memStage.io.in.rd := exMemRd
-  memStage.io.in.regWrite := exMemRegWrite
-  memStage.io.in.memToReg := executeStage.io.out.memToReg
+  memStage.io.in := exMemReg
   
   // MEM/WB pipeline registers
-  val memWbData = RegInit(0.U(32.W))
-  val memWbRd = RegInit(0.U(5.W))
-  val memWbRegWrite = RegInit(false.B)
-  val memWbMemToReg = RegInit(false.B)
-  memWbData := memStage.io.out.memData
-  memWbRd := memStage.io.out.wbRd
-  memWbRegWrite := memStage.io.out.wbRegWrite
-  memWbMemToReg := memStage.io.out.wbMemToReg
+  val memWriteBackReg = RegInit(0.U.asTypeOf(new MemWbIO))
+  memWriteBackReg := memStage.io.out
   
-  val wbStage = Module(new WritebackStage())
+  val writeBackStage = Module(new WritebackStage())
+  writeBackStage.io.in := memWriteBackReg
 
-  val memWbWire = Wire(new MemWbIO)
-  memWbWire.memData    := memWbData
-  memWbWire.aluOut     := exMemAluOut        // or memStage.io.out.aluOut if you prefer
-  memWbWire.wbRd       := memWbRd
-  memWbWire.wbRegWrite := memWbRegWrite
-  memWbWire.wbMemToReg := memWbMemToReg
-
-  wbStage.io.in := memWbWire
-  
-
-  wbRd := wbStage.io.rfWriteRd
-  wbWd := wbStage.io.rfWriteData
-  wbRw := wbStage.io.rfRegWrite
   // Debug outputs
   io.ifid_instr := ifIdReg.instr
 
   io.id_rs1 := 0.U
   io.id_rd := idExReg.dest(4,0)
   io.id_imm := idExReg.src2
-  io.id_regWrite := exMemRegWrite
+  io.id_regWrite := decodeStage.io.out.RegWrite
 
-  io.ex_rd := exMemRd
-  io.ex_regWrite := exMemRegWrite
+  io.ex_rd := executeStage.io.out.rd
+  io.ex_regWrite := executeStage.io.out.regWrite
 
-  io.mem_wbData := memWbData
-  io.mem_rd := memWbRd
-  io.mem_regWrite := memWbRegWrite
+  io.mem_ALUOut := memStage.io.in.aluOut
+  io.mem_rd := memStage.io.in.rd
+  io.mem_regWrite := memStage.io.in.regWrite
 
-  io.wb_wdata := wbStage.io.rfWriteData
-  io.wb_rd := wbStage.io.rfWriteRd 
+  io.wb_wdata := writeBackStage.io.rfWriteData
+  io.wb_rd := writeBackStage.io.rfWriteRd 
   io.led := false.B
 
   // For debugging writeback stage
   io.id_wbEnable := decodeStage.io.out.RegWrite
   io.ex_wbEnable := executeStage.io.out.regWrite
   io.mem_wbEnable := memStage.io.out.wbRegWrite
-  io.wb_wbEnable := wbStage.io.rfRegWrite
+  io.wb_wbEnable := writeBackStage.io.rfRegWrite
 
 }
 object StagesCombined extends App {
