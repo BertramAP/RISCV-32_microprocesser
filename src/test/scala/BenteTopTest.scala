@@ -25,7 +25,7 @@ class BenteTopTest extends AnyFlatSpec with ChiselScalatestTester {
       // An instruction's result is written back to the register file in the WB stage.
       // For a 5-stage pipeline, the first instruction writes back at the end of cycle 4. 
       // We have a extra register somewhere But it works with 5 for now.
-      c.clock.step(5) // Run until the end of cycle 3
+      c.clock.step(4) // Run until the end of cycle 3
 
       // At end of cycle 4, x1 should be 1
       c.clock.step()

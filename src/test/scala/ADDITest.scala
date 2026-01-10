@@ -21,10 +21,10 @@ class ADDITest extends AnyFlatSpec with ChiselScalatestTester {
     val debug = false
 
     // Expected values
-    val expectedValues = Array( 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 6, 6, 6, 6, 4 )
+    val expectedValues = Array( 0, 0, 0, 0, 0, 3, 3, 3, 3, 6, 6, 6, 6, 4 )
 
     test( new BenteTop(program, 0) ) { dut =>
-      for (i <- 0 until 15) {
+      for (i <- 0 until 14) {
 
         val x1 = dut.io.debug_regFile(1).peek().litValue
         if ( expectedValues(i) != x1 ) {
