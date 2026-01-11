@@ -26,13 +26,16 @@ class UARTInstructionLoader() extends Module {
     is(sIdle) {
       when(!io.uartRx) {
         state := sStart
+        counter := 0.U
       }
     }
    is(sStart) {
-    when(counter === countMID) {
+    when(counter === (countMID-1).U) {
       when(!io.uartRx) {
         state := sData
+        counter := 0.U
       } .otherwise { // False alarm
+        counter := 0.U
         state := sIdle
       }
     } .otherwise {
@@ -40,7 +43,7 @@ class UARTInstructionLoader() extends Module {
     }
    }
    is(sData) {
-    when(counter === countMAX) {
+    when(counter === (countMAX-1).U) {
       counter := 0.U // Reset counter
       dataReg := Cat(io.uartRx, dataReg(7,1))
       when(byteCounter === 7.U) {
@@ -54,7 +57,7 @@ class UARTInstructionLoader() extends Module {
     }
     }
     is(sStop) {
-    when(counter === countMAX) {
+    when(counter === (countMAX-1).U) {
       when(io.uartRx) {
         state := sDone
       } .otherwise { // Framing error, go back to idle
