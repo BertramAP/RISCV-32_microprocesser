@@ -7,7 +7,7 @@ class UARTInstructionLoader() extends Module {
     val uartRx = Input(Bool()) // UART receive line
     val loadDone = Output(Bool())
     val transferData = Output(UInt(8.W))
-  })
+  });
   val baudRate = 115200 // signal change per second
   val clockFreq = 100000000 // 100 MHz
   val countMAX = clockFreq / baudRate 
@@ -19,6 +19,8 @@ class UARTInstructionLoader() extends Module {
 
   val sIdle :: sStart :: sData :: sStop :: sDone :: Nil = Enum(5)
   val state = RegInit(sIdle)
+  io.loadDone := false.B
+  io.transferData := 0.U
 
   switch(state) {
     is(sIdle) {
@@ -44,11 +46,12 @@ class UARTInstructionLoader() extends Module {
       when(byteCounter === 7.U) {
         state := sStop
         byteCounter := 0.U
-      }.otherwise {
+        } .otherwise {
         byteCounter := byteCounter + 1.U
-      }
+        }
     } .otherwise {
       counter := counter + 1.U
+    }
     }
     is(sStop) {
     when(counter === countMAX) {
@@ -67,4 +70,5 @@ class UARTInstructionLoader() extends Module {
     io.transferData := dataReg
     state := sIdle
    }
+}
 }
