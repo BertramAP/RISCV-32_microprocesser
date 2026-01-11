@@ -15,7 +15,6 @@ class FetchStageTest extends AnyFlatSpec with ChiselScalatestTester {
     val pcStart = 0
 
     test(new FetchStage(program, pcStart)) { c =>
-      c.clock.step(1)
       for (i <- program.indices) {
         // PC should be at the correct address for the current instruction
         c.io.out.pc.expect((pcStart + i * 4).U)

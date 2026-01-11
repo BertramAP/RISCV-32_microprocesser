@@ -16,7 +16,6 @@ class WriteBackTest extends AnyFlatSpec with ChiselScalatestTester {
     // The expected writeback output for each stage in each clock cycle
     val expectedValues = Array(
       Array(0, 0, 0, 0),
-      Array(0, 0, 0, 0),
       Array(1, 0, 0, 0),
       Array(0, 1, 0, 0),
       Array(1, 0, 1, 0),
@@ -28,7 +27,7 @@ class WriteBackTest extends AnyFlatSpec with ChiselScalatestTester {
     val debug = false
 
     test( new BenteTop(program, 0) ) { dut =>
-      for (i <- 0 until 7) {
+      for (i <- 0 until 6) {
         val currentValues = Array(
           dut.io.id_wbEnable.peek().litValue,
           dut.io.ex_wbEnable.peek().litValue,

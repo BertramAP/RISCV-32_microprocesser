@@ -11,12 +11,12 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
 
     val ifid_instr   = Output(UInt(32.W))
 
-    val id_rs1       = Output(UInt(5.W))
+    val id_readAddress1 = Output(UInt(5.W))
+    val id_readData1 = Output(UInt(32.W))
     val id_rd        = Output(UInt(5.W))
     val id_imm       = Output(UInt(32.W))
     val id_regWrite  = Output(Bool())
     val id_wbEnable  = Output(Bool()) // For debugging writeback
-    val x1Full       = Output(Bool()) // For debugging ADDI
 
     val ex_aluOut    = Output(UInt(32.W))
     val ex_rd        = Output(UInt(5.W))
@@ -42,10 +42,8 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   io.done := done
 
   val fetchStage = Module(new FetchStage(code, PcStart))
-  val wbRd = WireDefault(0.U(5.W))
-  val wbWd = WireDefault(0.U(32.W))
-  val wbRw = WireDefault(false.B)
   fetchStage.io.in.done := done
+
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
   ifIdReg := fetchStage.io.out
@@ -59,11 +57,6 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val registerFile = Module(new RegisterFile())
   registerFile.io.readRegister1 := decodeStage.io.out.src1
   registerFile.io.readRegister2 := decodeStage.io.out.src2
-  registerFile.io.writeRegister := wbRd // Wires from WB stage
-  registerFile.io.writeData := wbWd // Wires from WB stage
-  registerFile.io.regWrite := wbRw // Wires from WB stage
-  io.x1Full := registerFile.io.x1Full // For debugging ADDI
-  io.debug_regFile := registerFile.io.debug_registers
 
   // ID/EX pipeline register
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
@@ -93,13 +86,19 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val writeBackStage = Module(new WritebackStage())
   writeBackStage.io.in := memWriteBackReg
 
+  registerFile.io.writeRegister := writeBackStage.io.rfWriteRd
+  registerFile.io.writeData := writeBackStage.io.rfWriteData
+  registerFile.io.regWrite := writeBackStage.io.rfRegWrite
+
   // Debug outputs
   io.ifid_instr := ifIdReg.instr
 
-  io.id_rs1 := 0.U
+  io.id_readAddress1 := registerFile.io.readRegister1
+  io.id_readData1 := registerFile.io.readData1
   io.id_rd := idExReg.dest(4,0)
-  io.id_imm := idExReg.src2
+  io.id_imm := decodeStage.io.out.imm
   io.id_regWrite := decodeStage.io.out.RegWrite
+  io.debug_regFile := registerFile.io.debug_registers
 
   io.ex_rd := executeStage.io.out.rd
   io.ex_regWrite := executeStage.io.out.regWrite

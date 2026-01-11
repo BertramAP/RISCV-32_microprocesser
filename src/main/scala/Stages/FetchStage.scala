@@ -18,12 +18,6 @@ class FetchStage(code: Array[Int], PcStart: Int) extends Module {
   val nextPc = Mux(io.in.branchTaken, io.in.branchTarget, Pc + 4.U)
   Pc := Mux(io.in.done, Pc, nextPc)
 
-  // Registers
-  val pcReg = RegInit(0.U(32.W))
-  pcReg := Pc
-  val instrReg = RegInit(0.U(32.W))
-  instrReg := imem(Pc(31,2))
-
-  io.out.pc := pcReg
-  io.out.instr := instrReg
+  io.out.pc := Pc
+  io.out.instr := imem(Pc(31,2))
 }

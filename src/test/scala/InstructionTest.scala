@@ -9,9 +9,6 @@ import java.nio.file.{Files, Paths}
 class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "Bente"
-
-  // Note: This test expects that the .s files in tests/riscv-tests have been compiled to .bin files.
-  // You can do this by running `make` in the `tests/riscv-tests` directory.
   val testDir = "tests/riscv-tests"
   val instructionTests = Util.getAsmFiles(testDir, ".s")
 
