@@ -22,6 +22,8 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
     val ex_rd        = Output(UInt(5.W))
     val ex_regWrite  = Output(Bool())
     val ex_wbEnable  = Output(Bool()) // For debugging writeback
+    val ex_branchTaken = Output(Bool())
+    val ex_branchTarget = Output(UInt(32.W))
 
     val mem_ALUOut  = Output(UInt(32.W))
     val mem_rd      = Output(UInt(5.W))
@@ -102,6 +104,8 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
 
   io.ex_rd := executeStage.io.out.rd
   io.ex_regWrite := executeStage.io.out.regWrite
+  io.ex_branchTaken := executeStage.io.BranchOut.branchTaken
+  io.ex_branchTarget := executeStage.io.BranchOut.branchTarget
 
   io.mem_ALUOut := memStage.io.in.aluOut
   io.mem_rd := memStage.io.in.rd
