@@ -4,7 +4,7 @@ import chisel3._
 
 class FetchStage(code: Array[Int], PcStart: Int) extends Module {
     
-    val io = IO(new Bundle {
+  val io = IO(new Bundle {
       val in = Input(new FetchBranchIO)
       val out = Output(new FetchDecodeIO)
   })

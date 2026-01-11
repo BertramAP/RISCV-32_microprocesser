@@ -5,14 +5,12 @@ import chisel3._
 class FetchDecodeIO extends Bundle {
   val instr = UInt(32.W)
   val pc    = UInt(32.W)
-  
 }
 
 class FetchBranchIO extends Bundle {
   val branchTaken = Bool()
   val branchTarget = UInt(32.W)
   val done  = Bool()
-
 }
 
 class DecodeExecuteIO extends Bundle {
@@ -77,7 +75,6 @@ class ExecuteMemIO extends Bundle {
     // Control signals for writeback stage
     val regWrite    = Bool()
     val memToReg    = Bool()
-
 }
 
 class MemWbIO extends Bundle {
