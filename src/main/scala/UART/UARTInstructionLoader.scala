@@ -19,7 +19,7 @@ class UARTInstructionLoader() extends Module {
 
   val sIdle :: sStart :: sData :: sStop :: sDone :: Nil = Enum(5)
   val state = RegInit(sIdle)
-
+  
   switch(state) {
     is(sIdle) {
       when(!io.uartRx) {

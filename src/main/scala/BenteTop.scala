@@ -39,6 +39,10 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
 
     // Board outputs
     val led = Output(Bool())
+
+    // Board UART
+    val uartRx = Input(Bool())
+    val uartTx = Output(Bool())
   })
   val done = WireDefault(false.B)
   io.done := done
@@ -120,7 +124,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   io.ex_wbEnable := executeStage.io.out.regWrite
   io.mem_wbEnable := memStage.io.out.wbRegWrite
   io.wb_wbEnable := writeBackStage.io.rfRegWrite
-
+  
 }
 object StagesCombined extends App {
   emitVerilog(new BenteTop(Array(0x00000013), 0), Array("--target-dir", "generated"))
