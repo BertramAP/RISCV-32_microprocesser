@@ -19,9 +19,7 @@ class UARTInstructionLoader() extends Module {
 
   val sIdle :: sStart :: sData :: sStop :: sDone :: Nil = Enum(5)
   val state = RegInit(sIdle)
-  io.loadDone := false.B
-  io.transferData := 0.U
-
+  
   switch(state) {
     is(sIdle) {
       when(!io.uartRx) {
@@ -73,5 +71,5 @@ class UARTInstructionLoader() extends Module {
     io.transferData := dataReg
     state := sIdle
    }
-}
+  }
 }
