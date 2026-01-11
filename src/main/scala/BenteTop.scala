@@ -74,7 +74,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   // EX/MEM pipeline registers (simple set for current minimal pipeline)
   val exMemReg = RegInit(0.U.asTypeOf(new ExecuteMemIO))
   exMemReg := executeStage.io.out
-
+    
   val memStage = Module(new MemStage())
   memStage.io.in := exMemReg
   memStage.io.in := exMemReg
