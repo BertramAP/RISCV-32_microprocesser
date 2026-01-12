@@ -58,15 +58,18 @@ class ExecuteStage extends Module {
     io.BranchOut.branchTarget := 0.U
     when(io.in.isJumpr) {
       io.BranchOut.branchTarget := jalrtarget
-      io.out.aluOut := io.in.pc + 4.U // return address for JAL in aluOut
     } .elsewhen(io.in.isJump) {
       io.BranchOut.branchTarget := jaltarget
-      io.out.aluOut := io.in.pc + 4.U 
     } .elsewhen(io.in.isBranch && branchCond) {
       io.BranchOut.branchTarget := io.in.pc + io.in.imm
-    } 
+    }
 
-    io.out.aluOut := ALU.io.aluOut
+    when (io.in.isJump || io.in.isJumpr) {
+      io.out.aluOut := io.in.pc + 4.U
+    } .otherwise {
+      io.out.aluOut := ALU.io.aluOut
+    }
+
     io.out.addrWord := ALU.io.aluOut(4, 2)
     io.out.storeData := io.in.src2
     io.out.rd := io.in.dest(4, 0) // Truncate to 5 bits for register index
