@@ -13,13 +13,13 @@ class ImmediateAddressMemoryTop extends Module {
     val immS       = Output(UInt(32.W))
     val immUsed    = Output(UInt(32.W))
     val aluOut     = Output(UInt(32.W))
-    val addrWord   = Output(UInt(3.W))
+    val addrWord   = Output(UInt(11.W))
 
     val memRead    = Output(Bool())
     val memWrite   = Output(Bool())
     val memData    = Output(UInt(32.W))
 
-    val dbgMem     = Output(Vec(8, UInt(32.W)))
+    val dbgMem     = Output(Vec(2048, UInt(32.W)))
   })
 
   val opcode = io.instr(6,0)
@@ -40,11 +40,11 @@ class ImmediateAddressMemoryTop extends Module {
 
   val aluOut = 0.U(32.W) + immUsed
   io.aluOut := aluOut
-  io.addrWord := aluOut(4,2)
+  io.addrWord := aluOut(12,2)
 
   val exmem = Wire(new ExecuteMemIO)
   exmem.aluOut    := aluOut
-  exmem.addrWord  := aluOut(4,2)
+  exmem.addrWord  := aluOut(12,2)
   exmem.storeData := io.storeValue
   exmem.memRead   := isLoad
   exmem.memWrite  := isStore
@@ -55,7 +55,7 @@ class ImmediateAddressMemoryTop extends Module {
   io.memRead  := exmem.memRead
   io.memWrite := exmem.memWrite
 
-  val mem = Module(new MemStage(8))
+  val mem = Module(new MemStage())
   mem.io.in := exmem
   val wbStage = Module(new WritebackStage())
   wbStage.io.in := mem.io.out
