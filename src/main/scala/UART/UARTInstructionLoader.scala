@@ -30,6 +30,7 @@ class UARTInstructionLoader() extends Module {
       }
     }
    is(sStart) {
+    done := false.B
     when(counter === (countMID-1).U) {
       when(!io.uartRx) {
         state := sData
@@ -43,6 +44,7 @@ class UARTInstructionLoader() extends Module {
     }
    }
    is(sData) {
+    done := false.B
     when(counter === (countMAX-1).U) {
       counter := 0.U // Reset counter
       dataReg := Cat(io.uartRx, dataReg(7,1))
