@@ -7,16 +7,16 @@ import chisel3.util._
 class UARTTop() extends Module {
   val io = IO(new Bundle {
     val rx = Input(Bool()) // UART receive line
-    val led = Output(Bool())
+    val led = Output(UInt(8.W)) // LED indicator
   })
 
   val instructionLoader = Module(new UARTInstructionLoader())
   instructionLoader.io.uartRx := io.rx
 
   // Simple LED indicator: turn on when loading is done
-  val loadDoneReg = RegInit(false.B)
+  val loadDoneReg = RegInit(0.U(8.W))
   when(instructionLoader.io.loadDone) {
-    loadDoneReg := true.B
+    loadDoneReg := instructionLoader.io.transferData
   }
   io.led := loadDoneReg
 }
