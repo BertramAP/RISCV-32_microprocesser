@@ -50,15 +50,17 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val fetchStage = Module(new FetchStage(code, PcStart))
   fetchStage.io.in.done := done
 
+  val shouldStall = Wire(Bool())
+  fetchStage.io.in.stall := shouldStall
+
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
-  ifIdReg := fetchStage.io.out
+
   io.if_pc := fetchStage.io.out.pc
   io.if_instr := fetchStage.io.out.instr
 
   val decodeStage = Module(new DecodeStage())
   decodeStage.io.in := ifIdReg
-  done := decodeStage.io.out.done
   
   val registerFile = Module(new RegisterFile())
   registerFile.io.readRegister1 := decodeStage.io.out.src1
@@ -66,10 +68,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
 
   // ID/EX pipeline register
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
-  idExReg := decodeStage.io.out
-  idExReg.src1 := Mux(decodeStage.io.out.isPC, decodeStage.io.out.pc, registerFile.io.readData1)
-  idExReg.src2 := registerFile.io.readData2
-
+  
   val executeStage = Module(new ExecuteStage())
   executeStage.io.in := idExReg
   io.ex_aluOut := executeStage.io.out.aluOut
@@ -77,11 +76,11 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
 
   
-  // EX/MEM pipeline registers (simple set for current minimal pipeline)
+  // EX/MEM pipeline registers
   val exMemReg = RegInit(0.U.asTypeOf(new ExecuteMemIO))
   exMemReg := executeStage.io.out
     
-  val memStage = Module(new MemStage())
+  val memStage = Module(new MemStage(code, 4096))
   memStage.io.in := exMemReg
   
   // MEM/WB pipeline registers
@@ -94,6 +93,84 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   registerFile.io.writeRegister := writeBackStage.io.rfWriteRd
   registerFile.io.writeData := writeBackStage.io.rfWriteData
   registerFile.io.regWrite := writeBackStage.io.rfRegWrite
+  
+  done := memWriteBackReg.done
+  
+  // Hazard Detection (Load-Use -> Stall)
+  // Check if instruction in EX (idExReg) is a Load and dest matches rs1 or rs2 of instruction in ID
+  val idExMemRead = idExReg.MemRead
+  val idExRd = idExReg.dest
+  val rs1 = decodeStage.io.out.src1
+  val rs2 = decodeStage.io.out.src2
+
+  shouldStall := idExMemRead && (idExRd =/= 0.U) && (idExRd === rs1 || idExRd === rs2)
+  
+  val branchTaken = executeStage.io.BranchOut.branchTaken
+
+  // IF/ID Update Logic
+  when (branchTaken) {
+    ifIdReg := 0.U.asTypeOf(new FetchDecodeIO) // Flush
+  } .elsewhen (!shouldStall) {
+    ifIdReg := fetchStage.io.out
+  } .otherwise {
+    // Stall: keep current value
+    ifIdReg := ifIdReg
+  }
+
+  // ID/EX Update Logic & Forwarding
+  
+  // Forwarding Sources
+  // ForwardA
+  val forwardA_EX = (idExReg.RegWrite && idExReg.dest =/= 0.U && idExReg.dest === rs1)
+  val forwardA_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs1)
+  
+  // Data from EX stage
+  val dataFromEX = executeStage.io.out.aluOut 
+  
+  // Data from MEM stage
+  val dataFromMEM = Mux(memStage.io.out.wbMemToReg, memStage.io.out.memData, memStage.io.out.aluOut)
+
+  val src1Data = Mux(forwardA_EX, dataFromEX,
+      Mux(forwardA_MEM, dataFromMEM,
+         Mux(decodeStage.io.out.isPC, decodeStage.io.out.pc, registerFile.io.readData1)
+      )
+  )
+
+  // ForwardB
+  val forwardB_EX = (idExReg.RegWrite && idExReg.dest =/= 0.U && idExReg.dest === rs2)
+  val forwardB_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs2)
+
+  val src2Data = Mux(forwardB_EX, dataFromEX,
+      Mux(forwardB_MEM, dataFromMEM,
+         registerFile.io.readData2
+      )
+  )
+
+  when (branchTaken || shouldStall) {
+     idExReg := 0.U.asTypeOf(new DecodeExecuteIO) // Flush / Bubble
+  } .otherwise {
+     // idExReg := decodeStage.io.out // Incorrect bulk assignment
+     // Explicit assignment to match fields correctly:
+     idExReg.imm      := decodeStage.io.out.imm
+     idExReg.dest     := decodeStage.io.out.dest
+     idExReg.funct3   := decodeStage.io.out.funct3
+     idExReg.funct7   := decodeStage.io.out.funct7
+     idExReg.pc       := decodeStage.io.out.pc
+     idExReg.isPC     := decodeStage.io.out.isPC
+     idExReg.isJump   := decodeStage.io.out.isJump
+     idExReg.isJumpr  := decodeStage.io.out.isJumpr
+     idExReg.isBranch := decodeStage.io.out.isBranch
+     idExReg.ALUSrc   := decodeStage.io.out.ALUSrc
+     idExReg.aluOp    := decodeStage.io.out.aluOp
+     idExReg.MemWrite := decodeStage.io.out.MemWrite
+     idExReg.MemRead  := decodeStage.io.out.MemRead
+     idExReg.RegWrite := decodeStage.io.out.RegWrite
+     idExReg.MemToReg := decodeStage.io.out.MemToReg
+     idExReg.done     := decodeStage.io.out.done
+
+     idExReg.src1 := src1Data
+     idExReg.src2 := src2Data
+  }
 
   // Debug outputs
   io.uartTx := false.B // Not implemented

@@ -4,10 +4,11 @@ import stages.MemStage
 
 class MemStageSpec extends FlatSpec with Matchers {
   "MemStage" should "store then load correctly" in {
-    Driver.execute(Array("--generate-vcd-output", "on"), () => new MemStage()) { dut =>
+    Driver.execute(Array("--generate-vcd-output", "on"), () => new MemStage(Array[Int]())) { dut =>
       new PeekPokeTester(dut) {
 
         // STORE: mem[0] = 0xBEEFBEEF
+        poke(dut.io.in.done, 0)
         poke(dut.io.in.addrWord, 0)
         poke(dut.io.in.storeData, 0xBEEFBEEFL)
         poke(dut.io.in.memWrite, 1)

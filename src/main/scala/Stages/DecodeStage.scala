@@ -25,7 +25,7 @@ class DecodeStage extends Module {
   val dest = WireDefault(io.in.instr(11, 7))
   val funct3 = WireDefault(0.U(3.W))
   val opcode = WireDefault(io.in.instr(6, 0))
-  val funct7 = WireDefault(0.U(1.W))
+  val funct7 = WireDefault(0.U(7.W))
 
   
   io.out.pc := io.in.pc
@@ -56,17 +56,16 @@ class DecodeStage extends Module {
     is(19.U) { // I-Type
       imm := signExtendIType(io.in.instr)
       funct3 := io.in.instr(14, 12)
-      funct7 := imm(9)
+      funct7 := io.in.instr(31, 25) // Use full funct7
       src1 := io.in.instr(19, 15)
       src2 := 0.U
-      // Determine ALU operation based on funct3 and funct7
       switch(funct3) {
         is(0.U) { aluOp := ALUops.ALU_ADD } // ADDI 
         is(1.U) { aluOp := ALUops.ALU_SLL } // SLLI
         is(2.U) { aluOp := ALUops.ALU_SLT } // SLTI
         is(3.U) { aluOp := ALUops.ALU_SLTU } // SLTIU
         is(4.U) { aluOp := ALUops.ALU_XOR } // XORI
-        is(5.U) { aluOp := Mux(funct7 === 0.U, ALUops.ALU_SRL, ALUops.ALU_SRA) } // SRLI/SRAI
+        is(5.U) { aluOp := Mux(funct7(5) === 0.U, ALUops.ALU_SRL, ALUops.ALU_SRA) } // SRLI/SRAI
         is(6.U) { aluOp := ALUops.ALU_OR } // OR
         is(7.U) { aluOp := ALUops.ALU_AND } // ANDI
       }
@@ -92,14 +91,14 @@ class DecodeStage extends Module {
       src1 := io.in.instr(19, 15)
       src2 := io.in.instr(24, 20)
       funct3 := io.in.instr(14, 12)
-      funct7 := io.in.instr(30)
+      funct7 := io.in.instr(31, 25)
       switch(funct3) {
-        is(0.U) { aluOp := Mux(funct7 === 0.U, ALUops.ALU_ADD, ALUops.ALU_SUB) } // ADD/SUB
+        is(0.U) { aluOp := Mux(funct7(5) === 0.U, ALUops.ALU_ADD, ALUops.ALU_SUB) } // ADD/SUB
         is(1.U) { aluOp := ALUops.ALU_SLL } // SLL
         is(2.U) { aluOp := ALUops.ALU_SLT } // SLT
         is(3.U) { aluOp := ALUops.ALU_SLTU } // SLTU
         is(4.U) { aluOp := ALUops.ALU_XOR } // XOR
-        is(5.U) { aluOp := Mux(funct7 === 0.U, ALUops.ALU_SRL, ALUops.ALU_SRA) } // SRL/SRA
+        is(5.U) { aluOp := Mux(funct7(5) === 0.U, ALUops.ALU_SRL, ALUops.ALU_SRA) } // SRL/SRA
         is(6.U) { aluOp := ALUops.ALU_OR } // OR
         is(7.U) { aluOp := ALUops.ALU_AND } // AND
       }

@@ -51,6 +51,14 @@ class Controller extends Module {
       io.out.RegWrite := true.B
       io.out.isJumpr := true.B 
      }
+     is("b0110111".U) { // LUI
+       io.out.RegWrite := true.B
+       io.out.ALUSrc := true.B
+     }
+     is("b0010111".U) { // AUIPC
+       io.out.RegWrite := true.B
+       io.out.ALUSrc := true.B
+     }
      is("b1110011" .U) { // ECALL/EBREAK
       // No control signals asserted
       io.out.done := true.B

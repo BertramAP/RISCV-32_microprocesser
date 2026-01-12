@@ -16,6 +16,8 @@ class ExecuteStage extends Module {
     io.out.memRead := io.in.MemRead
     io.out.memWrite := io.in.MemWrite
     io.BranchOut.done := io.in.done
+    io.out.done := io.in.done
+    io.BranchOut.stall := false.B
     // Forward control signals to writeback stage
     io.out.regWrite := io.in.RegWrite
     io.out.memToReg := io.in.MemToReg
@@ -61,16 +63,18 @@ class ExecuteStage extends Module {
     } .elsewhen(io.in.isJump) {
       io.BranchOut.branchTarget := jaltarget
     } .elsewhen(io.in.isBranch && branchCond) {
+      io.BranchOut.stall := false.B // Stall logic implemented in BenteTop
       io.BranchOut.branchTarget := io.in.pc + io.in.imm
     }
-
-    when (io.in.isJump || io.in.isJumpr) {
+  
+    when(io.in.isJump || io.in.isJumpr) {
       io.out.aluOut := io.in.pc + 4.U
     } .otherwise {
       io.out.aluOut := ALU.io.aluOut
     }
 
-    io.out.addrWord := ALU.io.aluOut(4, 2)
+    io.out.addrWord := ALU.io.aluOut(31, 2) // Word address for memory
     io.out.storeData := io.in.src2
+    io.out.funct3 := io.in.funct3
     io.out.rd := io.in.dest(4, 0) // Truncate to 5 bits for register index
 }
