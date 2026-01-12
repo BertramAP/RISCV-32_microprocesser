@@ -15,16 +15,10 @@ class UARTTop() extends Module {
   instructionLoader.io.uartRx := io.rx
 
   // Simple LED indicator: turn on when loading is done
-<<<<<<< HEAD
   io.led := instructionLoader.io.loadDone
   when(instructionLoader.io.loadDone) { // Write
     instructionMem.write(pc, instructionLoader.io.transferData)
     pc := pc + 1.U
-=======
-  val loadDoneReg = RegInit(0.U(8.W))
-  when(instructionLoader.io.loadDone) {
-    loadDoneReg := instructionLoader.io.transferData
->>>>>>> 74867013da684a6a0c6ef135009b273d7861585d
   }
 }
 object UARTTop extends App {

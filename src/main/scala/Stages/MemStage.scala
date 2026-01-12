@@ -10,9 +10,10 @@ class MemStage(code: Array[Int], memSize: Int = 2048) extends Module {
     val out = Output(new MemWbIO)
     val dbgMem = Output(Vec(memSize, UInt(32.W)))
   })
-  // Forward control signals to writeback stage
+  // Forward control signals
   io.out.wbRegWrite := io.in.regWrite
   io.out.wbMemToReg := io.in.memToReg
+  io.out.done       := io.in.done
   
   val memInit = code.toIndexedSeq.map(x => (x & 0xFFFFFFFFL).U(32.W)) ++ Seq.fill(math.max(0, memSize - code.length))(0.U(32.W))
   val dmem = RegInit(VecInit(memInit.take(memSize)))
@@ -54,8 +55,6 @@ class MemStage(code: Array[Int], memSize: Int = 2048) extends Module {
   io.out.memData := memData
   io.out.aluOut  := io.in.aluOut
   io.out.wbRd       := io.in.rd
-  io.out.wbRegWrite := io.in.regWrite
-  io.out.wbMemToReg := io.in.memToReg
   io.out.done       := io.in.done
   io.dbgMem := dmem
 }

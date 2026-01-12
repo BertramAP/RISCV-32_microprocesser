@@ -70,10 +70,9 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
   
   val executeStage = Module(new ExecuteStage())
+  fetchStage.io.in <> executeStage.io.BranchOut
   executeStage.io.in := idExReg
   io.ex_aluOut := executeStage.io.out.aluOut
-  fetchStage.io.in.branchTaken := executeStage.io.BranchOut.branchTaken
-  fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
 
   
   // EX/MEM pipeline registers
@@ -98,7 +97,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   
   // Hazard Detection (Load-Use -> Stall)
   // Check if instruction in EX (idExReg) is a Load and dest matches rs1 or rs2 of instruction in ID
-  val idExMemRead = idExReg.MemRead
+  val idExMemRead = idExReg.memRead
   val idExRd = idExReg.dest
   val rs1 = decodeStage.io.out.src1
   val rs2 = decodeStage.io.out.src2
@@ -121,7 +120,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   
   // Forwarding Sources
   // ForwardA
-  val forwardA_EX = (idExReg.RegWrite && idExReg.dest =/= 0.U && idExReg.dest === rs1)
+  val forwardA_EX = (idExReg.regWrite && idExReg.dest =/= 0.U && idExReg.dest === rs1)
   val forwardA_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs1)
   
   // Data from EX stage
@@ -137,7 +136,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   )
 
   // ForwardB
-  val forwardB_EX = (idExReg.RegWrite && idExReg.dest =/= 0.U && idExReg.dest === rs2)
+  val forwardB_EX = (idExReg.regWrite && idExReg.dest =/= 0.U && idExReg.dest === rs2)
   val forwardB_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs2)
 
   val src2Data = Mux(forwardB_EX, dataFromEX,
@@ -149,8 +148,6 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   when (branchTaken || shouldStall) {
      idExReg := 0.U.asTypeOf(new DecodeExecuteIO) // Flush / Bubble
   } .otherwise {
-     // idExReg := decodeStage.io.out // Incorrect bulk assignment
-     // Explicit assignment to match fields correctly:
      idExReg.imm      := decodeStage.io.out.imm
      idExReg.dest     := decodeStage.io.out.dest
      idExReg.funct3   := decodeStage.io.out.funct3
@@ -160,12 +157,12 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
      idExReg.isJump   := decodeStage.io.out.isJump
      idExReg.isJumpr  := decodeStage.io.out.isJumpr
      idExReg.isBranch := decodeStage.io.out.isBranch
-     idExReg.ALUSrc   := decodeStage.io.out.ALUSrc
+     idExReg.aluSrc   := decodeStage.io.out.aluSrc
      idExReg.aluOp    := decodeStage.io.out.aluOp
-     idExReg.MemWrite := decodeStage.io.out.MemWrite
-     idExReg.MemRead  := decodeStage.io.out.MemRead
-     idExReg.RegWrite := decodeStage.io.out.RegWrite
-     idExReg.MemToReg := decodeStage.io.out.MemToReg
+     idExReg.memWrite := decodeStage.io.out.memWrite
+     idExReg.memRead  := decodeStage.io.out.memRead
+     idExReg.regWrite := decodeStage.io.out.regWrite
+     idExReg.memToReg := decodeStage.io.out.memToReg
      idExReg.done     := decodeStage.io.out.done
 
      idExReg.src1 := src1Data
@@ -181,7 +178,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   io.id_readData1 := registerFile.io.readData1
   io.id_rd := idExReg.dest(4,0)
   io.id_imm := decodeStage.io.out.imm
-  io.id_regWrite := decodeStage.io.out.RegWrite
+  io.id_regWrite := decodeStage.io.out.regWrite
   io.debug_regFile := registerFile.io.debug_registers
 
   io.ex_rd := executeStage.io.out.rd
@@ -198,7 +195,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   io.led := io.debug_regFile(1) === 1.U // Enable led by setting x1 to 1
 
   // For debugging writeback stage
-  io.id_wbEnable := decodeStage.io.out.RegWrite
+  io.id_wbEnable := decodeStage.io.out.regWrite
   io.ex_wbEnable := executeStage.io.out.regWrite
   io.mem_wbEnable := memStage.io.out.wbRegWrite
   io.wb_wbEnable := writeBackStage.io.rfRegWrite

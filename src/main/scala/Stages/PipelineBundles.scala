@@ -28,16 +28,16 @@ class DecodeExecuteIO extends Bundle {
   val isBranch = Bool()
 
   // Control signals for execute stage
-  val ALUSrc = Bool()
+  val aluSrc = Bool()
   val aluOp  = UInt(4.W)
 
   // Control signals for memory stage
-  val MemWrite = Bool()
-  val MemRead = Bool()
+  val memWrite = Bool()
+  val memRead = Bool()
 
   // Control signals for writeback stage
-  val RegWrite = Bool()
-  val MemToReg = Bool()
+  val regWrite = Bool()
+  val memToReg = Bool()
 
   val done = Bool()
 }
@@ -52,14 +52,14 @@ class DecodeOutputsIO extends Bundle {
   val funct7 = UInt(7.W)
   val pc = UInt(32.W)
   val isPC = Bool()
-  val RegWrite = Bool()
-  val ALUSrc = Bool()
+  val regWrite = Bool()
+  val aluSrc = Bool()
   val isJump = Bool()
   val isJumpr = Bool()
   val isBranch = Bool()
-  val MemRead = Bool()
-  val MemWrite = Bool()
-  val MemToReg = Bool()
+  val memRead = Bool()
+  val memWrite = Bool()
+  val memToReg = Bool()
   val done = Bool()
 }
 
@@ -99,13 +99,13 @@ class DecodeInputIO extends Bundle {
 }
 
 class ControllerExecuteIO extends Bundle {
-  val RegWrite = Bool()
-  val ALUSrc = Bool()
+  val regWrite = Bool()
+  val aluSrc = Bool()
   val isJump = Bool()
   val isJumpr = Bool()
   val isBranch = Bool()
-  val MemRead = Bool()
-  val MemWrite = Bool()
-  val MemToReg = Bool()
+  val memRead = Bool()
+  val memWrite = Bool()
+  val memToReg = Bool()
   val done = Bool()
 }

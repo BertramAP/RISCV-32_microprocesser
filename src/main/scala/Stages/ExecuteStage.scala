@@ -12,15 +12,15 @@ class ExecuteStage extends Module {
       val BranchOut = Output(new FetchBranchIO) 
     })
 
-    // Forward control signals to memory stage
-    io.out.memRead := io.in.MemRead
-    io.out.memWrite := io.in.MemWrite
-    io.BranchOut.done := io.in.done
+    // Forward control signals
+    io.out.memRead := io.in.memRead
+    io.out.memWrite := io.in.memWrite
+    io.out.regWrite := io.in.regWrite
+    io.out.memToReg := io.in.memToReg
     io.out.done := io.in.done
+
+    io.BranchOut.done := io.in.done
     io.BranchOut.stall := false.B
-    // Forward control signals to writeback stage
-    io.out.regWrite := io.in.RegWrite
-    io.out.memToReg := io.in.MemToReg
 
     val branchCond = WireDefault(false.B)
     when (io.in.isBranch) {
@@ -49,7 +49,7 @@ class ExecuteStage extends Module {
     val ALU = Module(new ALU())
 
     ALU.io.src1 := io.in.src1
-    ALU.io.src2 := Mux(io.in.ALUSrc, io.in.imm, io.in.src2)
+    ALU.io.src2 := Mux(io.in.aluSrc, io.in.imm, io.in.src2)
     ALU.io.aluOp := io.in.aluOp
 
     io.BranchOut.branchTaken := (io.in.isBranch && branchCond) || (io.in.isJump || io.in.isJumpr)

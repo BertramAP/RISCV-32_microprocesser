@@ -33,11 +33,11 @@ class DecodeStage extends Module {
   val controller = Module(new Controller())
   io.out.done := controller.io.out.done
   controller.io.opcode := opcode
-  io.out.RegWrite := controller.io.out.RegWrite
-  io.out.ALUSrc := controller.io.out.ALUSrc
-  io.out.MemRead := controller.io.out.MemRead
-  io.out.MemWrite := controller.io.out.MemWrite
-  io.out.MemToReg := controller.io.out.MemToReg
+  io.out.regWrite := controller.io.out.regWrite
+  io.out.aluSrc := controller.io.out.aluSrc
+  io.out.memRead := controller.io.out.memRead
+  io.out.memWrite := controller.io.out.memWrite
+  io.out.memToReg := controller.io.out.memToReg
   io.out.isJump := controller.io.out.isJump
   io.out.isJumpr := controller.io.out.isJumpr
   io.out.isBranch := controller.io.out.isBranch
