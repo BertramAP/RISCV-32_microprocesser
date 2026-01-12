@@ -1,3 +1,4 @@
+package UART
 
 import chisel3._
 import chisel3.util._
@@ -19,6 +20,10 @@ class UARTInstructionLoader() extends Module {
 
   val sIdle :: sStart :: sData :: sStop :: sDone :: Nil = Enum(5)
   val state = RegInit(sIdle)
+
+  val done = WireDefault(false.B)
+  io.transferData := 0.U
+  io.loadDone := done
   
   switch(state) {
     is(sIdle) {
@@ -28,6 +33,7 @@ class UARTInstructionLoader() extends Module {
       }
     }
    is(sStart) {
+    done := false.B
     when(counter === (countMID-1).U) {
       when(!io.uartRx) {
         state := sData
@@ -41,6 +47,7 @@ class UARTInstructionLoader() extends Module {
     }
    }
    is(sData) {
+    done := false.B
     when(counter === (countMAX-1).U) {
       counter := 0.U // Reset counter
       dataReg := Cat(io.uartRx, dataReg(7,1))
@@ -67,7 +74,7 @@ class UARTInstructionLoader() extends Module {
     }
    }
    is(sDone) {
-    io.loadDone := true.B
+    done := true.B
     io.transferData := dataReg
     state := sIdle
    }

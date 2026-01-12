@@ -194,8 +194,8 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   io.mem_regWrite := memStage.io.in.regWrite
 
   io.wb_wdata := writeBackStage.io.rfWriteData
-  io.wb_rd := writeBackStage.io.rfWriteRd 
-  io.led := false.B
+  io.wb_rd := writeBackStage.io.rfWriteRd
+  io.led := io.debug_regFile(1) === 1.U // Enable led by setting x1 to 1
 
   // For debugging writeback stage
   io.id_wbEnable := decodeStage.io.out.RegWrite
@@ -205,5 +205,36 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   
 }
 object StagesCombined extends App {
-  emitVerilog(new BenteTop(Array(0x00000013), 0), Array("--target-dir", "generated"))
+  // We do 100_000_000 clock cycles per second
+  val program = Array(
+    0x00000093, // addi x1 x0 0     | Init LED to off
+    0x00000113, // addi x2 x0 0     | Set counter to 0
+    0x007f31b7, // lui x3 2035      | Set counter target to 50M/6 = 8333333
+    0x81518193, // addi x3 x3 -2027 | Set counter target to 50M/6 = 8333333
+    0x00000013, // nop
+    0x00000013, // nop
+
+    // offloop:
+    0x00110113, // addi x2 x2 1     | Increment counter
+    0x00000013, // nop
+    0x00000013, // nop
+    0xfe311ae3, // bne x2 x3 -12    | Branch to offloop if we haven't reached target
+    0x00000013, // nop
+    0x00000013, // nop
+    0x00100093, // addi x1 x0 1     | Turn LED ON
+
+    // onloop:
+    0xfff10113, // addi x2 x2 -1    | Decrement counter
+    0x00000013, // nop
+    0x00000013, // nop
+    0xfe011ae3, // bne x2 x0 -12    | Branch to onloop if counter hasn't reached 0 yet
+    0x00000013, // nop
+    0x00000013, // nop
+    0x00000093, // addi x1 x0 0     | Turn LED off
+    0xfc0104e3, // beq x2 x0 -56    | Branch to offloop
+    0x00000013, // nop
+    0x00000013, // nop
+  )
+
+  emitVerilog(new BenteTop(program, 0), Array("--target-dir", "generated"))
 }

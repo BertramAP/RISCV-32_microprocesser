@@ -40,7 +40,7 @@ class Controller extends Module {
     }
     is("b1100011".U) { // Branch
       io.out.isBranch := true.B
-  
+      
     }
     is("b1101111".U) { // JAL
       io.out.RegWrite := true.B
