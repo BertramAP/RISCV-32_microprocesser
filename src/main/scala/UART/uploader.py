@@ -2,7 +2,7 @@ import serial
 import time
 import sys
 
-PORT = '/dev/ttyUSB0'  # Change this to your UART port
+PORT = '/dev/ttyUSB1'  # Change this to your UART port
 BAUDRATE = 115200 # Shloud be the same for all of us, so dont change it
 FILE = "/home/ap/Dokumenter/RISCV-32_microprocesser/tests/ripes/add.bin"  # Change this to the binary file path you want to upload
 

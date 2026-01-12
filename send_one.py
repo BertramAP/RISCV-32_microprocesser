@@ -1,6 +1,6 @@
 import serial, time
 
-PORT = "COM6"    
+PORT = "/dev/ttyUSB1"    
 BAUD = 115200
 
 with serial.Serial(PORT,115200) as ser:
