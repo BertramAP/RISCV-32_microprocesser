@@ -83,7 +83,6 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
     
   val memStage = Module(new MemStage())
   memStage.io.in := exMemReg
-  memStage.io.in := exMemReg
   
   // MEM/WB pipeline registers
   val memWriteBackReg = RegInit(0.U.asTypeOf(new MemWbIO))
@@ -97,6 +96,8 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   registerFile.io.regWrite := writeBackStage.io.rfRegWrite
 
   // Debug outputs
+  io.uartTx := false.B // Not implemented
+
   io.ifid_instr := ifIdReg.instr
 
   io.id_readAddress1 := registerFile.io.readRegister1
