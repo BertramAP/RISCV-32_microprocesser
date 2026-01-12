@@ -12,13 +12,15 @@ class ExecuteStage extends Module {
       val BranchOut = Output(new FetchBranchIO) 
     })
 
-    // Forward control signals to memory stage
-    io.out.memRead := io.in.MemRead
-    io.out.memWrite := io.in.MemWrite
+    // Forward control signals
+    io.out.memRead := io.in.memRead
+    io.out.memWrite := io.in.memWrite
+    io.out.regWrite := io.in.regWrite
+    io.out.memToReg := io.in.memToReg
+    io.out.done := io.in.done
+
     io.BranchOut.done := io.in.done
-    // Forward control signals to writeback stage
-    io.out.regWrite := io.in.RegWrite
-    io.out.memToReg := io.in.MemToReg
+    io.BranchOut.stall := false.B
 
     val branchCond = WireDefault(false.B)
     when (io.in.isBranch) {
@@ -47,7 +49,7 @@ class ExecuteStage extends Module {
     val ALU = Module(new ALU())
 
     ALU.io.src1 := io.in.src1
-    ALU.io.src2 := Mux(io.in.ALUSrc, io.in.imm, io.in.src2)
+    ALU.io.src2 := Mux(io.in.aluSrc, io.in.imm, io.in.src2)
     ALU.io.aluOp := io.in.aluOp
 
     io.BranchOut.branchTaken := (io.in.isBranch && branchCond) || (io.in.isJump || io.in.isJumpr)
@@ -61,16 +63,18 @@ class ExecuteStage extends Module {
     } .elsewhen(io.in.isJump) {
       io.BranchOut.branchTarget := jaltarget
     } .elsewhen(io.in.isBranch && branchCond) {
+      io.BranchOut.stall := false.B // Stall logic implemented in BenteTop
       io.BranchOut.branchTarget := io.in.pc + io.in.imm
     }
-
-    when (io.in.isJump || io.in.isJumpr) {
+  
+    when(io.in.isJump || io.in.isJumpr) {
       io.out.aluOut := io.in.pc + 4.U
     } .otherwise {
       io.out.aluOut := ALU.io.aluOut
     }
 
-    io.out.addrWord := ALU.io.aluOut(4, 2)
+    io.out.addrWord := ALU.io.aluOut(31, 2) // Word address for memory
     io.out.storeData := io.in.src2
+    io.out.funct3 := io.in.funct3
     io.out.rd := io.in.dest(4, 0) // Truncate to 5 bits for register index
 }

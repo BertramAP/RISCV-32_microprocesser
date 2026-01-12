@@ -51,11 +51,12 @@ class ImmediateAddressMemoryTop extends Module {
   exmem.rd        := io.instr(11,7)
   exmem.regWrite  := isLoad || isIType
   exmem.memToReg  := isLoad
+  exmem.done      := false.B
 
   io.memRead  := exmem.memRead
   io.memWrite := exmem.memWrite
 
-  val mem = Module(new MemStage())
+  val mem = Module(new MemStage(Array[Int]()))
   mem.io.in := exmem
   val wbStage = Module(new WritebackStage())
   wbStage.io.in := mem.io.out

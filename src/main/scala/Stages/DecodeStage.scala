@@ -25,7 +25,7 @@ class DecodeStage extends Module {
   val dest = WireDefault(io.in.instr(11, 7))
   val funct3 = WireDefault(0.U(3.W))
   val opcode = WireDefault(io.in.instr(6, 0))
-  val funct7 = WireDefault(0.U(1.W))
+  val funct7 = WireDefault(0.U(7.W))
 
   
   io.out.pc := io.in.pc
@@ -33,11 +33,11 @@ class DecodeStage extends Module {
   val controller = Module(new Controller())
   io.out.done := controller.io.out.done
   controller.io.opcode := opcode
-  io.out.RegWrite := controller.io.out.RegWrite
-  io.out.ALUSrc := controller.io.out.ALUSrc
-  io.out.MemRead := controller.io.out.MemRead
-  io.out.MemWrite := controller.io.out.MemWrite
-  io.out.MemToReg := controller.io.out.MemToReg
+  io.out.regWrite := controller.io.out.regWrite
+  io.out.aluSrc := controller.io.out.aluSrc
+  io.out.memRead := controller.io.out.memRead
+  io.out.memWrite := controller.io.out.memWrite
+  io.out.memToReg := controller.io.out.memToReg
   io.out.isJump := controller.io.out.isJump
   io.out.isJumpr := controller.io.out.isJumpr
   io.out.isBranch := controller.io.out.isBranch
@@ -56,17 +56,16 @@ class DecodeStage extends Module {
     is(19.U) { // I-Type
       imm := signExtendIType(io.in.instr)
       funct3 := io.in.instr(14, 12)
-      funct7 := imm(9)
+      funct7 := io.in.instr(31, 25) // Use full funct7
       src1 := io.in.instr(19, 15)
       src2 := 0.U
-      // Determine ALU operation based on funct3 and funct7
       switch(funct3) {
         is(0.U) { aluOp := ALUops.ALU_ADD } // ADDI 
         is(1.U) { aluOp := ALUops.ALU_SLL } // SLLI
         is(2.U) { aluOp := ALUops.ALU_SLT } // SLTI
         is(3.U) { aluOp := ALUops.ALU_SLTU } // SLTIU
         is(4.U) { aluOp := ALUops.ALU_XOR } // XORI
-        is(5.U) { aluOp := Mux(funct7 === 0.U, ALUops.ALU_SRL, ALUops.ALU_SRA) } // SRLI/SRAI
+        is(5.U) { aluOp := Mux(funct7(5) === 0.U, ALUops.ALU_SRL, ALUops.ALU_SRA) } // SRLI/SRAI
         is(6.U) { aluOp := ALUops.ALU_OR } // OR
         is(7.U) { aluOp := ALUops.ALU_AND } // ANDI
       }
@@ -92,14 +91,14 @@ class DecodeStage extends Module {
       src1 := io.in.instr(19, 15)
       src2 := io.in.instr(24, 20)
       funct3 := io.in.instr(14, 12)
-      funct7 := io.in.instr(30)
+      funct7 := io.in.instr(31, 25)
       switch(funct3) {
-        is(0.U) { aluOp := Mux(funct7 === 0.U, ALUops.ALU_ADD, ALUops.ALU_SUB) } // ADD/SUB
+        is(0.U) { aluOp := Mux(funct7(5) === 0.U, ALUops.ALU_ADD, ALUops.ALU_SUB) } // ADD/SUB
         is(1.U) { aluOp := ALUops.ALU_SLL } // SLL
         is(2.U) { aluOp := ALUops.ALU_SLT } // SLT
         is(3.U) { aluOp := ALUops.ALU_SLTU } // SLTU
         is(4.U) { aluOp := ALUops.ALU_XOR } // XOR
-        is(5.U) { aluOp := Mux(funct7 === 0.U, ALUops.ALU_SRL, ALUops.ALU_SRA) } // SRL/SRA
+        is(5.U) { aluOp := Mux(funct7(5) === 0.U, ALUops.ALU_SRL, ALUops.ALU_SRA) } // SRL/SRA
         is(6.U) { aluOp := ALUops.ALU_OR } // OR
         is(7.U) { aluOp := ALUops.ALU_AND } // AND
       }

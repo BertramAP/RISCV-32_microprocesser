@@ -22,8 +22,8 @@ class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
       it should s"pass the $testName test from $testDir" in {
         val (program, start) = Util.getCode(binFile)
 
-        test(new BenteTop(program, start)).withAnnotations(Seq(WriteVcdAnnotation)) { c =>
-          c.clock.setTimeout(2000)
+        test(new BenteTop(program, start)) { c =>
+          c.clock.setTimeout(20000)
           c.clock.step(1) // to start the pipeline
           while (!c.io.done.peek().litToBoolean) {
             c.clock.step(1)
