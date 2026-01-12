@@ -1,3 +1,4 @@
+package UART
 
 import chisel3._
 import chisel3.util._
@@ -72,4 +73,6 @@ class UARTInstructionLoader() extends Module {
     state := sIdle
    }
   }
+  io.transferData := 0.U
+  io.loadDone := false.B
 }
