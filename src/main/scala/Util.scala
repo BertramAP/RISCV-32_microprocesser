@@ -77,45 +77,96 @@ object Util {
     arr
   }
 
-  def readElf(fileName: String): Array[Int] = {
+  def readElf(fileName: String): (Array[Int], Array[Int], Int) = {
     val elf = ElfFile.from(new File(fileName))
     if (!elf.is32Bits() || elf.e_machine != 0xf3) throw new Exception("Not a RV32I executable")
-    /*
-    for (i <- 1 until elf.e_shnum) {
-      val sect = elf.getSection(i)
-      println(s"section $i: ${sect.header.getName} ${sect.header.sh_name} ${sect.header.sh_addr} ${sect.header.sh_size}")
-    }
-     */
+    
     val textSection = elf.firstSectionByName(".text")
     val text = byteToWord(textSection.getData)
+    
     val dataSection = elf.firstSectionByName(".data")
-    if (dataSection == null) return text
+    var data = Array[Int]()
+    
+    if (dataSection != null) {
+       data = byteToWord(dataSection.getData)
+       println(f"ELF Data Section: addr=0x${dataSection.header.sh_addr}%x, words=${data.length}")
+    }
 
-    val data = byteToWord(dataSection.getData)
-    val length = text.length + data.length + ((dataSection.header.sh_addr - textSection.header.sh_size) / 4)
-    val mem = new Array[Int](length.toInt)
-    for (i <- 0 until text.length) {
-      mem(i) = text(i)
+    println(f"ELF Text Section: addr=0x${textSection.header.sh_addr}%x, words=${text.length}")
+
+    // Determine min address to normalize memory loading
+    // Addresses might be high (e.g. 0x80000000), so we treat them as unsigned 32-bit.
+    // We'll map minAddr to index 0.
+    
+    val textAddrFull = textSection.header.sh_addr // Long
+    var dataAddrFull = 0L
+    if (dataSection != null) dataAddrFull = dataSection.header.sh_addr
+    
+    // Find base address (min of sections present)
+    var minAddrFull = textAddrFull
+    if (dataSection != null) minAddrFull = math.min(textAddrFull, dataAddrFull)
+    
+    // Check for high address implied by standard riscv-tests (0x80000000)
+    // If minAddr is 0, we don't offset.
+    
+    // Normalize to 0-based array index
+    val textOffset = ((textAddrFull - minAddrFull) / 4).toInt
+    val dataOffset = if (dataSection != null) ((dataAddrFull - minAddrFull) / 4).toInt else 0
+    
+    val maxIndex = math.max(textOffset + text.length, dataOffset + data.length)
+    val imem = new Array[Int](maxIndex)
+    val dmem = new Array[Int](maxIndex)
+
+    println(f"ELF Load: MinAddr=0x$minAddrFull%x TextOffset=0x$textOffset%x DataOffset=0x$dataOffset%x Size=$maxIndex")
+
+    // Load Instruction Memory
+    for (i <- 0 until text.length) imem(textOffset + i) = text(i)
+    if (dataSection != null) {
+        for (i <- 0 until data.length) imem(dataOffset + i) = data(i)
     }
-    for (i <- 0 until data.length) {
-      mem((dataSection.header.sh_addr/4 + i).toInt) = data(i)
+    // Priority Text overwrite
+    for (i <- 0 until text.length) imem(textOffset + i) = text(i)
+
+    // Load Data Memory
+    for (i <- 0 until text.length) dmem(textOffset + i) = text(i)
+    if (dataSection != null) {
+        for (i <- 0 until data.length) dmem(dataOffset + i) = data(i)
     }
-    mem
+
+    // Return memory and entry point
+    var entryPoint = elf.e_entry.toInt
+    
+    // Heuristic for 'string' test where .data is merged into .text at 0
+    // If Text and Data are at same address (0) and Text is larger than Data
+    // and they share content, it implies Text section includes Data at the beginning.
+    // Execution should start after Data.
+    if (textAddrFull == dataAddrFull && text.length > data.length && data.length > 0) {
+        // Check if content matches
+        if (text(0) == data(0)) {
+           println("Detected Data merged into Text. Adjusting Entry Point.")
+           entryPoint = (data.length * 4) + minAddrFull.toInt
+        }
+    }
+
+    println(f"ELF Entry Point: 0x$entryPoint%x")
+    (imem, dmem, entryPoint)
   }
 
-  def getCode(name: String): (Array[Int], Int) = {
-    val (code, start) =
+  def getCode(name: String): (Array[Int], Array[Int], Int) = {
+    val (imem, dmem, start) =
       if (name.endsWith(".bin")) {
-        (Util.readBin(name), 0)
+        val bins = Util.readBin(name)
+        (bins, bins, 0)
       } else if (name.endsWith(".out")) {
-        (Util.readElf(name), 0)
+        Util.readElf(name)
       } else if (name.endsWith(".hex")) {
-        (Util.readHex(name), 0x200)
+        val hexs = Util.readHex(name)
+        (hexs, hexs, 0x200)
       } else {
         throw new Exception("Unknown file extension")
       }
     // code.foreach(x => println(f"$x%08x"))
-    (code, start)
+    (imem, dmem, start)
   }
 
   def getAsmFiles(path: String = "asm", ext: String = ".s") = {

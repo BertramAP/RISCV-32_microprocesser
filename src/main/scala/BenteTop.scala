@@ -3,7 +3,7 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class BenteTop(code: Array[Int], PcStart: Int) extends Module {
+class BenteTop(imem: Array[Int], dmem: Array[Int], PcStart: Int) extends Module {
   val io = IO(new Bundle {
     // debug outputs for each stage
     val if_pc        = Output(UInt(32.W))
@@ -47,7 +47,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val done = WireDefault(false.B)
   io.done := done
 
-  val fetchStage = Module(new FetchStage(code, PcStart))
+  val fetchStage = Module(new FetchStage(imem, PcStart))
   fetchStage.io.in.done := done
 
   val shouldStall = Wire(Bool())
@@ -82,7 +82,8 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val exMemReg = RegInit(0.U.asTypeOf(new ExecuteMemIO))
   exMemReg := executeStage.io.out
     
-  val memStage = Module(new MemStage(code, 4096))
+  // Use dmem for MemStage
+  val memStage = Module(new MemStage(dmem, 4096))
   memStage.io.in := exMemReg
   
   // MEM/WB pipeline registers
@@ -242,5 +243,5 @@ object StagesCombined extends App {
     0x00000013, // nop
   )
 
-  emitVerilog(new BenteTop(program, 0), Array("--target-dir", "generated"))
+  emitVerilog(new BenteTop(program, program, 0), Array("--target-dir", "generated"))
 }

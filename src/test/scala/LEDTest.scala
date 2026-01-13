@@ -39,7 +39,7 @@ class LEDTest extends AnyFlatSpec with ChiselScalatestTester {
     val debug = true
 
 
-    test( new BenteTop(program, 0) ) { dut =>
+    test( new BenteTop(program, program, 0) ) { dut =>
       dut.clock.setTimeout(0) // Prevent test from failing after 1000 clock cycles
 
       var currentClock = 0

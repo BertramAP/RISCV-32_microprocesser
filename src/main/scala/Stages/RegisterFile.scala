@@ -35,5 +35,5 @@ class RegisterFile extends Module {
         }
     }
 
-    io.debug_registers := registers // For debugging
+    io.debug_registers := registers
 }
