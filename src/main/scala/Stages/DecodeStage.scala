@@ -30,22 +30,26 @@ class DecodeStage extends Module {
   
   io.out.pc := io.in.pc
 
-  val controller = Module(new Controller())
-  io.out.done := controller.io.out.done
-  controller.io.opcode := opcode
-  io.out.regWrite := controller.io.out.regWrite
-  io.out.aluSrc := controller.io.out.aluSrc
-  io.out.memRead := controller.io.out.memRead
-  io.out.memWrite := controller.io.out.memWrite
-  io.out.memToReg := controller.io.out.memToReg
-  io.out.isJump := controller.io.out.isJump
-  io.out.isJumpr := controller.io.out.isJumpr
-  io.out.isBranch := controller.io.out.isBranch
+  // Default control signals
+  io.out.regWrite := false.B
+  io.out.aluSrc := false.B
+  io.out.memRead := false.B
+  io.out.memWrite := false.B
+  io.out.memToReg := false.B
+  io.out.isBranch := false.B
+  io.out.isJump := false.B
+  io.out.isJumpr := false.B
+  io.out.done := false.B
 
   val imm = WireDefault(0.U(32.W))
-  
+
   switch(opcode) {
     is(3.U) { // Load type
+      io.out.regWrite := true.B
+      io.out.aluSrc := true.B
+      io.out.memRead := true.B
+      io.out.memToReg := true.B
+
       imm := signExtendIType(io.in.instr)
       src1 := (io.in.instr(19, 15))
       src2 := 0.U
@@ -54,6 +58,9 @@ class DecodeStage extends Module {
     }
 
     is(19.U) { // I-Type
+      io.out.regWrite := true.B
+      io.out.aluSrc := true.B
+
       imm := signExtendIType(io.in.instr)
       funct3 := io.in.instr(14, 12)
       funct7 := io.in.instr(31, 25) // Use full funct7
@@ -71,6 +78,9 @@ class DecodeStage extends Module {
       }
     }
     is (23.U) { // auipc
+      io.out.regWrite := true.B
+      io.out.aluSrc := true.B
+
       // TODO: find how to share pc
       imm := Cat(io.in.instr(31, 12), Fill(12, 0.U))
       src1 := 0.U
@@ -78,6 +88,9 @@ class DecodeStage extends Module {
       aluOp := ALUops.ALU_ADD
     }
     is(35.U) { // Store type
+      io.out.aluSrc := true.B
+      io.out.memWrite := true.B
+
       //WIP
       imm := Cat(Fill(20, io.in.instr(31)), io.in.instr(31, 25), io.in.instr(11, 7))
       src1 := (io.in.instr(19, 15))
@@ -87,6 +100,8 @@ class DecodeStage extends Module {
       aluOp := ALUops.ALU_ADD // Store uses addition
     } 
     is(51.U) { // R-type
+      io.out.regWrite := true.B
+
       imm := 0.U
       src1 := io.in.instr(19, 15)
       src2 := io.in.instr(24, 20)
@@ -104,12 +119,17 @@ class DecodeStage extends Module {
       }
     } 
     is(55.U) { // LUI
+      io.out.regWrite := true.B
+      io.out.aluSrc := true.B
+
       imm := Cat(io.in.instr(31, 12), Fill(12, 0.U))
       src1 := 0.U
       src2 := 0.U // Maybe set it to 12
       aluOp := ALUops.ALU_ADD // LUI uses addition with 0
     }
     is(99.U) { // Branch type
+      io.out.isBranch := true.B
+
       //Double check if works, and sign extension
       imm := signExtendBType(io.in.instr)
       funct3 := io.in.instr(14, 12)
@@ -119,6 +139,9 @@ class DecodeStage extends Module {
       aluOp := ALUops.ALU_SUB // Branches use subtraction for comparison
     }
     is(111.U) { // JAL
+      io.out.regWrite := true.B
+      io.out.isJump := true.B
+
       imm := Cat(
         Fill(11, io.in.instr(31)),
         io.in.instr(31),
@@ -132,12 +155,16 @@ class DecodeStage extends Module {
       aluOp := ALUops.ALU_ADD // JAL uses addition to calculate target address
     }
     is(103.U) { // JALR
+      io.out.regWrite := true.B
+      io.out.isJumpr := true.B
+
       imm := signExtendIType(io.in.instr)
       src1 := io.in.instr(19, 15) // TODO: The pc needs src1 and imm to be updated
       src2 := 0.U //
       aluOp := ALUops.ALU_ADD // JALR uses addition to calculate target address
     }
     is(115.U) { // ECALL/EBREAK
+      io.out.done := true.B
       // TODO: handle system instructions
     }
   }
