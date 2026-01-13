@@ -16,11 +16,19 @@ class MemStage(code: Array[Int], memSize: Int = 2048) extends Module {
   io.out.done       := io.in.done
   
   val memInit = code.toIndexedSeq.map(x => (x & 0xFFFFFFFFL).U(32.W)) ++ Seq.fill(math.max(0, memSize - code.length))(0.U(32.W))
-  val dmem = RegInit(VecInit(memInit.take(memSize)))
-  // Calculate address within memory bounds
-  val addr = io.in.addrWord(log2Ceil(memSize)-1, 0)
+
+  
+  // Split memory: dmemLow (Code) and dmemHigh (Stack)
+  val dmemLow = RegInit(VecInit(memInit.take(memSize)))
+  val dmemHigh = Mem(memSize, UInt(32.W)) // Use Mem for stack
+
+  // Address decoding
+  val wordIndex = io.in.aluOut(31, 2)
+  val useHigh = wordIndex >= memSize.U // Access high memory if index exceeds low memory size
+  val effectiveAddr = wordIndex(log2Ceil(memSize)-1, 0) // Modulo mapping
+
   val offset = io.in.aluOut(1, 0)
-  val readWord = dmem(addr)
+  val readWord = Mux(useHigh, dmemHigh.read(effectiveAddr), dmemLow(effectiveAddr))
   val memData = WireDefault(0.U(32.W))
 
   // Load Logic
@@ -49,12 +57,16 @@ class MemStage(code: Array[Int], memSize: Int = 2048) extends Module {
       }
       // is(2.U) SW - Default
     }
-    dmem(addr) := wdata
+    when(useHigh) {
+      dmemHigh.write(effectiveAddr, wdata)
+    } .otherwise {
+      dmemLow(effectiveAddr) := wdata
+    }
   }
   
   io.out.memData := memData
   io.out.aluOut  := io.in.aluOut
   io.out.wbRd       := io.in.rd
   io.out.done       := io.in.done
-  io.dbgMem := dmem
+  io.dbgMem := dmemLow // Debug output shows low mem
 }

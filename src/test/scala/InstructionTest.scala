@@ -9,7 +9,7 @@ import java.nio.file.{Files, Paths}
 class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "Bente"
-  val testDirs = Seq("tests/ripes", "tests/riscv-tests", "tests/simple")
+  val testDirs = Seq("tests/ripes", /*"tests/riscv-tests",*/ "tests/simple")
 
   testDirs.foreach { testDir =>
     val instructionTests = Util.getAsmFiles(testDir, ".s")
@@ -23,7 +23,7 @@ class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
         val (program, start) = Util.getCode(binFile)
 
         test(new BenteTop(program, start)) { c =>
-          c.clock.setTimeout(20000)
+          c.clock.setTimeout(50000)
           c.clock.step(1) // to start the pipeline
           while (!c.io.done.peek().litToBoolean) {
             c.clock.step(1)

@@ -79,7 +79,7 @@ class DecodeStage extends Module {
     }
     is(35.U) { // Store type
       //WIP
-      imm := Cat(io.in.instr(31, 25), io.in.instr(11, 7))
+      imm := Cat(Fill(20, io.in.instr(31)), io.in.instr(31, 25), io.in.instr(11, 7))
       src1 := (io.in.instr(19, 15))
       src2 := io.in.instr(24, 20)
       funct3 := io.in.instr(14, 12)

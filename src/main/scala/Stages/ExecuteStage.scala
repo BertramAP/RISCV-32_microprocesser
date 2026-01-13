@@ -23,6 +23,7 @@ class ExecuteStage extends Module {
     io.BranchOut.stall := false.B
 
     val branchCond = WireDefault(false.B)
+  
     when (io.in.isBranch) {
       switch(io.in.funct3) {
         is("b000".U) { // BEQ

@@ -70,7 +70,10 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
   
   val executeStage = Module(new ExecuteStage())
-  fetchStage.io.in <> executeStage.io.BranchOut
+  // fetchStage.io.in <> executeStage.io.BranchOut // Removed to prevent overwriting stall
+  fetchStage.io.in.branchTaken := executeStage.io.BranchOut.branchTaken
+  fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
+  
   executeStage.io.in := idExReg
   io.ex_aluOut := executeStage.io.out.aluOut
 
@@ -119,34 +122,40 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   // ID/EX Update Logic & Forwarding
   
   // Forwarding Sources
-  // ForwardA
+  // ForwardA for rs1 
   val forwardA_EX = (idExReg.regWrite && idExReg.dest =/= 0.U && idExReg.dest === rs1)
   val forwardA_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs1)
+  val forwardA_WB = (memWriteBackReg.wbRegWrite && memWriteBackReg.wbRd =/= 0.U && memWriteBackReg.wbRd === rs1)  
   
-  // Data from EX stage
+  // ForwardB for rs2
+  val forwardB_EX = (idExReg.regWrite && idExReg.dest =/= 0.U && idExReg.dest === rs2)
+  val forwardB_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs2)
+  val forwardB_WB = (memWriteBackReg.wbRegWrite && memWriteBackReg.wbRd =/= 0.U && memWriteBackReg.wbRd === rs2)
+
   val dataFromEX = executeStage.io.out.aluOut 
-  
-  // Data from MEM stage
+
   val dataFromMEM = Mux(memStage.io.out.wbMemToReg, memStage.io.out.memData, memStage.io.out.aluOut)
+
+  val dataFromWB = writeBackStage.io.rfWriteData
 
   val src1Data = Mux(forwardA_EX, dataFromEX,
       Mux(forwardA_MEM, dataFromMEM,
+        Mux(forwardA_WB, dataFromWB, 
          Mux(decodeStage.io.out.isPC, decodeStage.io.out.pc, registerFile.io.readData1)
+        )
       )
   )
 
-  // ForwardB
-  val forwardB_EX = (idExReg.regWrite && idExReg.dest =/= 0.U && idExReg.dest === rs2)
-  val forwardB_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs2)
-
   val src2Data = Mux(forwardB_EX, dataFromEX,
       Mux(forwardB_MEM, dataFromMEM,
+        Mux(forwardB_WB, dataFromWB, 
          registerFile.io.readData2
+        )
       )
   )
 
   when (branchTaken || shouldStall) {
-     idExReg := 0.U.asTypeOf(new DecodeExecuteIO) // Flush / Bubble
+     idExReg := 0.U.asTypeOf(new DecodeExecuteIO) // Flush
   } .otherwise {
      idExReg.imm      := decodeStage.io.out.imm
      idExReg.dest     := decodeStage.io.out.dest
