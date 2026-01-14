@@ -3,7 +3,7 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class BenteTop(code: Array[Int], PcStart: Int) extends Module {
+class BenteTop(imem: Array[Int], dmem: Array[Int], PcStart: Int) extends Module {
   val io = IO(new Bundle {
     /*
     // debug outputs for each stage
@@ -46,11 +46,11 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
     */
     val led = Output(Bool())
   })
-  // val done = WireDefault(false.B)
   // io.done := done
 
-  val fetchStage = Module(new FetchStage(code, PcStart))
-  fetchStage.io.in.done := WireDefault(false.B)
+  val fetchStage = Module(new FetchStage(imem, PcStart))
+  val done = WireDefault(false.B)
+  fetchStage.io.in.done := done
 
   val shouldStall = Wire(Bool())
   fetchStage.io.in.stall := shouldStall
@@ -72,7 +72,10 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
   
   val executeStage = Module(new ExecuteStage())
-  fetchStage.io.in <> executeStage.io.BranchOut
+  // fetchStage.io.in <> executeStage.io.BranchOut // Removed to prevent overwriting stall
+  fetchStage.io.in.branchTaken := executeStage.io.BranchOut.branchTaken
+  fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
+  
   executeStage.io.in := idExReg
   // io.ex_aluOut := executeStage.io.out.aluOut
 
@@ -81,7 +84,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val exMemReg = RegInit(0.U.asTypeOf(new ExecuteMemIO))
   exMemReg := executeStage.io.out
     
-  val memStage = Module(new MemStage(code, 128))
+  val memStage = Module(new MemStage(imem, 128))
   memStage.io.in := exMemReg
   
   // MEM/WB pipeline registers
@@ -121,34 +124,40 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   // ID/EX Update Logic & Forwarding
   
   // Forwarding Sources
-  // ForwardA
+  // ForwardA for rs1 
   val forwardA_EX = (idExReg.regWrite && idExReg.dest =/= 0.U && idExReg.dest === rs1)
   val forwardA_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs1)
+  val forwardA_WB = (memWriteBackReg.wbRegWrite && memWriteBackReg.wbRd =/= 0.U && memWriteBackReg.wbRd === rs1)  
   
-  // Data from EX stage
+  // ForwardB for rs2
+  val forwardB_EX = (idExReg.regWrite && idExReg.dest =/= 0.U && idExReg.dest === rs2)
+  val forwardB_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs2)
+  val forwardB_WB = (memWriteBackReg.wbRegWrite && memWriteBackReg.wbRd =/= 0.U && memWriteBackReg.wbRd === rs2)
+
   val dataFromEX = executeStage.io.out.aluOut 
-  
-  // Data from MEM stage
+
   val dataFromMEM = Mux(memStage.io.out.wbMemToReg, memStage.io.out.memData, memStage.io.out.aluOut)
+
+  val dataFromWB = writeBackStage.io.rfWriteData
 
   val src1Data = Mux(forwardA_EX, dataFromEX,
       Mux(forwardA_MEM, dataFromMEM,
+        Mux(forwardA_WB, dataFromWB, 
          Mux(decodeStage.io.out.isPC, decodeStage.io.out.pc, registerFile.io.readData1)
+        )
       )
   )
 
-  // ForwardB
-  val forwardB_EX = (idExReg.regWrite && idExReg.dest =/= 0.U && idExReg.dest === rs2)
-  val forwardB_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs2)
-
   val src2Data = Mux(forwardB_EX, dataFromEX,
       Mux(forwardB_MEM, dataFromMEM,
+        Mux(forwardB_WB, dataFromWB, 
          registerFile.io.readData2
+        )
       )
   )
 
   when (branchTaken || shouldStall) {
-     idExReg := 0.U.asTypeOf(new DecodeExecuteIO) // Flush / Bubble
+     idExReg := 0.U.asTypeOf(new DecodeExecuteIO) // Flush
   } .otherwise {
      idExReg.imm      := decodeStage.io.out.imm
      idExReg.dest     := decodeStage.io.out.dest
@@ -236,5 +245,5 @@ object StagesCombined extends App {
     0x00000013, // nop
   )
 
-  emitVerilog(new BenteTop(program, 0), Array("--target-dir", "generated"))
+  emitVerilog(new BenteTop(program, program, 0), Array("--target-dir", "generated"))
 }

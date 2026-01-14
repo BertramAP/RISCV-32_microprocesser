@@ -22,7 +22,7 @@ class BranchingTest extends AnyFlatSpec with ChiselScalatestTester {
       0x00000013, // nop
       0x00000013  // nop
     )
-    test(new BenteTop(program, 0)) { c =>
+    test(new BenteTop(program, program, 0)) { c =>
       val zeroCount = countZeroPc(c, 10)
       assert(zeroCount >= 2)
     }
@@ -34,7 +34,7 @@ class BranchingTest extends AnyFlatSpec with ChiselScalatestTester {
       0xffdff06f, // jal x0, -4
       0x00000013  // nop
     )
-    test(new BenteTop(program, 0)) { c =>
+    test(new BenteTop(program, program, 0)) { c =>
       val zeroCount = countZeroPc(c, 10)
       assert(zeroCount >= 2)
     }
@@ -46,7 +46,7 @@ class BranchingTest extends AnyFlatSpec with ChiselScalatestTester {
       0x00000067, // jalr x0, x0, 0
       0x00000013  // nop
     )
-    test(new BenteTop(program, 0)) { c =>
+    test(new BenteTop(program, program, 0)) { c =>
       val zeroCount = countZeroPc(c, 10)
       assert(zeroCount >= 2)
     }
