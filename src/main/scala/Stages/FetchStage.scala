@@ -3,16 +3,16 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class FetchStage(code: Array[Int], PcStart: Int, memSize: Int = 128) extends Module {
+class FetchStage(PcStart: Int, memSizeWords: Int = 128) extends Module {
     
   val io = IO(new Bundle {
       val in = Input(new FetchBranchIO)
+      val imemAddr = Output(UInt(log2Ceil(memSizeWords).W))
+      val imemInstr = Input(UInt(32.W))
       val out = Output(new FetchDecodeIO)
+
   })
 
-  // Pad code with zeros up to memSize
-  val imemInit = code.toIndexedSeq.map(x => (x & 0xFFFFFFFFL).U(32.W))
-  val imem = VecInit(imemInit.take(memSize))
 
   //Program counter
   val Pc = RegInit((PcStart.toLong & 0xFFFFFFFFL).U(32.W))
@@ -20,7 +20,8 @@ class FetchStage(code: Array[Int], PcStart: Int, memSize: Int = 128) extends Mod
   Pc := Mux(io.in.done || io.in.stall, Pc, nextPc)
 
   io.out.pc := Pc
+  val wordAddr = Pc(31, 2)(log2Ceil(memSizeWords) - 1, 0)
+  io.imemAddr := wordAddr
   // Mask PC to avoid out of bounds
-  val addr = Pc(31,2)
-  io.out.instr := imem(addr(log2Ceil(memSize)-1, 0))
+  io.out.instr := io.imemInstr
 }

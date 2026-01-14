@@ -1,0 +1,153 @@
+package stages
+
+import chisel3._
+import chisel3.util._
+import UART.UARTInstructionLoader
+
+class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module {
+  val io = IO(new Bundle {
+    val rx  = Input(Bool()) // -> io_rx in XDC      
+    val tx  = Output(Bool()) // -> io_tx in XDC
+    val buy = Input(Bool()) // Start button input
+    val led = Output(UInt(8.W)) // LED indicators
+  })
+
+  io.tx := true.B // idle high (no UART TX yet)
+
+  val core = Module(new BenteTop(
+    Array.fill(memSizeWords)(0),
+    Array.fill(memSizeWords)(0),
+    PcStart,
+    memSizeWords
+    ))
+
+
+  // UART byte receiver
+  val uart = Module(new UARTInstructionLoader())
+  uart.io.uartRx := io.rx
+
+  // Loader FSM: header (memUsed) + 3-byte length + payload bytes
+  val sIdle :: sLen :: sData :: Nil = Enum(3)
+  val state = RegInit(sIdle)
+
+  val memUsed     = RegInit(0.U(1.W))     // 0=IMEM, 1=DMEM
+  val lengthBytes = RegInit(0.U(24.W))
+  val lenCount    = RegInit(0.U(2.W))     // 0..2
+
+  val byteIndex   = RegInit(0.U(24.W))
+  val byteCounter = RegInit(0.U(2.W))     // 0..3
+  val wordBuffer  = RegInit(0.U(32.W))
+
+  val imemLoaded = RegInit(false.B)
+  val dmemLoaded = RegInit(false.B)
+
+  // default: no writes
+  core.io.imemWe := false.B
+  core.io.imemWaddr := 0.U
+  core.io.imemWdata := 0.U
+
+  core.io.dmemWe := false.B
+  core.io.dmemWaddr := 0.U
+  core.io.dmemWdata := 0.U
+
+  // any UART activity => core is not running
+  val loadingActive = state =/= sIdle
+
+  // button rising edge
+  val buySync0 = RegNext(io.buy)
+  val buySync1 = RegNext(buySync0)
+  val buyPrev  = RegNext(buySync1)
+  val buyRise  = buySync1 && !buyPrev
+
+  val runReg = RegInit(false.B)
+  val loadedAll = imemLoaded && dmemLoaded
+
+  when(loadingActive) {
+    runReg := false.B // must press button after loading
+  }.elsewhen(buyRise && loadedAll) {
+    runReg := true.B
+  }
+
+
+  switch(state) {
+    is(sIdle) {
+      when(uart.io.loadDone) {
+        memUsed := uart.io.transferData(0)
+        lengthBytes := 0.U
+        lenCount := 0.U
+        byteIndex := 0.U
+        byteCounter := 0.U
+        wordBuffer := 0.U
+        state := sLen
+      }
+    }
+
+    is(sLen) {
+      when(uart.io.loadDone) {
+        lengthBytes := Cat(uart.io.transferData, lengthBytes(23, 8)) // little endian
+        lenCount := lenCount + 1.U
+        when(lenCount === 2.U) {
+          lenCount := 0.U
+          state := sData
+        }
+      }
+    }
+
+    is(sData) {
+      when(uart.io.loadDone) {
+        val shifted = (uart.io.transferData.asUInt << (byteCounter << 3)).asUInt
+        val newWord = wordBuffer | shifted
+        wordBuffer := newWord
+
+        val atWordEnd = (byteCounter === 3.U)
+        val wordAddr = (byteIndex >> 2).asUInt
+
+        when(atWordEnd) {
+          when(memUsed === 0.U) {
+            core.io.imemWe := true.B
+            core.io.imemWaddr := wordAddr(log2Ceil(memSizeWords)-1, 0)
+            core.io.imemWdata := newWord
+          }.otherwise {
+            core.io.dmemWe := true.B
+            core.io.dmemWaddr := wordAddr(log2Ceil(memSizeWords)-1, 0)
+            core.io.dmemWdata := newWord
+          }
+          wordBuffer := 0.U
+          byteCounter := 0.U
+        }.otherwise {
+          byteCounter := byteCounter + 1.U
+        }
+
+        val lastByte = (byteIndex === (lengthBytes - 1.U))
+        byteIndex := byteIndex + 1.U
+
+        when(lastByte) {
+          when(memUsed === 0.U) { imemLoaded := true.B } .otherwise { dmemLoaded := true.B }
+          state := sIdle
+        }
+      }
+    }
+  }
+
+  val doneLatched = RegInit(false.B)
+    when(!core.io.run) {
+      doneLatched := false.B
+    }.elsewhen(core.io.done) {
+      doneLatched := true.B
+    }
+
+  core.io.run := runReg && loadedAll && !loadingActive && !doneLatched
+
+  // LED map:
+  // [0] loadingActive
+  // [1] loadedAll
+  // [2] running (core.io.run)
+  // [3] doneLatched
+  // [4] core LED output (x1==1) (your existing core.io.led)
+  // [7:5] unused
+  io.led := Cat(0.U(3.W), core.io.led, doneLatched, core.io.run, loadedAll, loadingActive)
+  }
+
+object LoadAndRunTester extends App {
+  emitVerilog(new LoadAndRunTester(), Array("--target-dir", "generated"))
+}

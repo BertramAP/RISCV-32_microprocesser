@@ -3,7 +3,7 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class BenteTop(imem: Array[Int], dmem: Array[Int], PcStart: Int) extends Module {
+class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, memSizeWords: Int = 128) extends Module {
   val io = IO(new Bundle {
     /*
     // debug outputs for each stage
@@ -44,16 +44,42 @@ class BenteTop(imem: Array[Int], dmem: Array[Int], PcStart: Int) extends Module 
     val uartRx = Input(Bool())
     val uartTx = Output(Bool())
     */
+    // Instruction memory write ports for testing
+    val imemWe    = Input(Bool())
+    val imemWaddr = Input(UInt(log2Ceil(memSizeWords).W))
+    val imemWdata = Input(UInt(32.W))
+
+    // Data memory write ports for testing
+    val dmemWe    = Input(Bool())
+    val dmemWaddr = Input(UInt(log2Ceil(memSizeWords).W))
+    val dmemWdata = Input(UInt(32.W))
+
+    val run = Input(Bool())
     val led = Output(Bool())
+    val done = Output(Bool())
   })
   // io.done := done
 
-  val fetchStage = Module(new FetchStage(imem, PcStart))
-  val done = WireDefault(false.B)
-  fetchStage.io.in.done := done
+  val imemInit = imemInitArr.toIndexedSeq.map(x => (x & 0xFFFFFFFFL).U(32.W)) ++
+    Seq.fill(math.max(0, memSizeWords - imemInitArr.length))(0.U(32.W))
+  val imem = RegInit(VecInit(imemInit.take(memSizeWords)))
 
+  when(io.imemWe) {
+    imem(io.imemWaddr) := io.imemWdata
+  }
+  val fetchStage = Module(new FetchStage(PcStart, memSizeWords))
+  fetchStage.io.imemInstr := imem(fetchStage.io.imemAddr)
+
+  val doneWire = WireDefault(false.B)
   val shouldStall = Wire(Bool())
-  fetchStage.io.in.stall := shouldStall
+  val globalStall = shouldStall || !io.run
+  fetchStage.io.in.done := doneWire
+  fetchStage.io.in.stall := globalStall
+  fetchStage.io.in.branchTaken  := false.B
+  fetchStage.io.in.branchTarget := 0.U
+
+ 
+
 
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
@@ -84,8 +110,13 @@ class BenteTop(imem: Array[Int], dmem: Array[Int], PcStart: Int) extends Module 
   val exMemReg = RegInit(0.U.asTypeOf(new ExecuteMemIO))
   exMemReg := executeStage.io.out
     
-  val memStage = Module(new MemStage(imem, 128))
+  val memStage = Module(new MemStage(dmemInitArr, memSizeWords))
   memStage.io.in := exMemReg
+
+  // Memory write ports for testing
+  memStage.io.dmemWe    := io.dmemWe
+  memStage.io.dmemWaddr := io.dmemWaddr
+  memStage.io.dmemWdata := io.dmemWdata
   
   // MEM/WB pipeline registers
   val memWriteBackReg = RegInit(0.U.asTypeOf(new MemWbIO))
@@ -98,7 +129,8 @@ class BenteTop(imem: Array[Int], dmem: Array[Int], PcStart: Int) extends Module 
   registerFile.io.writeData := writeBackStage.io.rfWriteData
   registerFile.io.regWrite := writeBackStage.io.rfRegWrite
   
-  // done := memWriteBackReg.done
+  doneWire := memWriteBackReg.done
+  io.done := doneWire
   
   // Hazard Detection (Load-Use -> Stall)
   // Check if instruction in EX (idExReg) is a Load and dest matches rs1 or rs2 of instruction in ID
@@ -114,7 +146,7 @@ class BenteTop(imem: Array[Int], dmem: Array[Int], PcStart: Int) extends Module 
   // IF/ID Update Logic
   when (branchTaken) {
     ifIdReg := 0.U.asTypeOf(new FetchDecodeIO) // Flush
-  } .elsewhen (!shouldStall) {
+  } .elsewhen (!globalStall) {
     ifIdReg := fetchStage.io.out
   } .otherwise {
     // Stall: keep current value
