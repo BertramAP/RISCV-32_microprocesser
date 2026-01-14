@@ -3,7 +3,7 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class FetchStage(code: Array[Int], PcStart: Int, memSize: Int = 4096) extends Module {
+class FetchStage(code: Array[Int], PcStart: Int, memSize: Int = 128) extends Module {
     
   val io = IO(new Bundle {
       val in = Input(new FetchBranchIO)
@@ -15,7 +15,7 @@ class FetchStage(code: Array[Int], PcStart: Int, memSize: Int = 4096) extends Mo
   val imem = VecInit(imemInit.take(memSize))
 
   //Program counter
-  val Pc = RegInit(PcStart.asUInt(32.W))
+  val Pc = RegInit((PcStart.toLong & 0xFFFFFFFFL).U(32.W))
   val nextPc = Mux(io.in.branchTaken, io.in.branchTarget, Pc + 4.U)
   Pc := Mux(io.in.done || io.in.stall, Pc, nextPc)
 

@@ -23,6 +23,7 @@ class ExecuteStage extends Module {
     io.BranchOut.stall := false.B
 
     val branchCond = WireDefault(false.B)
+  
     when (io.in.isBranch) {
       switch(io.in.funct3) {
         is("b000".U) { // BEQ
@@ -46,11 +47,48 @@ class ExecuteStage extends Module {
       }
     }
 
-    val ALU = Module(new ALU())
+    val aluOut = WireDefault(0.U(32.W))
+    val aluZero = WireDefault(false.B)
 
-    ALU.io.src1 := io.in.src1
-    ALU.io.src2 := Mux(io.in.aluSrc, io.in.imm, io.in.src2)
-    ALU.io.aluOp := io.in.aluOp
+    // ALU Logic
+    val src1 = io.in.src1
+    val src2 = Mux(io.in.aluSrc, io.in.imm, io.in.src2)
+    val aluOp = io.in.aluOp
+    val shamt = src2(4, 0)
+    
+    switch (aluOp) {
+      is(ALUops.ALU_ADD)  {
+        aluOut := src1 + src2
+      }
+      is(ALUops.ALU_SUB)  {
+        aluOut := src1 - src2
+      }
+      is(ALUops.ALU_AND)  {
+        aluOut := src1 & src2
+      }
+      is(ALUops.ALU_OR)   {
+        aluOut := src1 | src2
+      }
+      is(ALUops.ALU_XOR)  {
+        aluOut := src1 ^ src2
+      }
+      is(ALUops.ALU_SLT)  {
+        aluOut := (src1.asSInt < src2.asSInt).asUInt
+      }
+      is(ALUops.ALU_SLTU) {
+        aluOut := (src1 < src2).asUInt
+      }
+      is(ALUops.ALU_SLL)  {
+        aluOut := (src1 << shamt)(31, 0)
+      }
+      is(ALUops.ALU_SRL)  {
+        aluOut := src1 >> shamt
+      }
+      is(ALUops.ALU_SRA)  {
+        aluOut := (src1.asSInt >> shamt).asUInt
+      }
+    }
+    aluZero := aluOut === 0.U
 
     io.BranchOut.branchTaken := (io.in.isBranch && branchCond) || (io.in.isJump || io.in.isJumpr)
 
@@ -70,10 +108,10 @@ class ExecuteStage extends Module {
     when(io.in.isJump || io.in.isJumpr) {
       io.out.aluOut := io.in.pc + 4.U
     } .otherwise {
-      io.out.aluOut := ALU.io.aluOut
+      io.out.aluOut := aluOut
     }
 
-    io.out.addrWord := ALU.io.aluOut(31, 2) // Word address for memory
+    io.out.addrWord := aluOut(31, 2) // Word address for memory
     io.out.storeData := io.in.src2
     io.out.funct3 := io.in.funct3
     io.out.rd := io.in.dest(4, 0) // Truncate to 5 bits for register index

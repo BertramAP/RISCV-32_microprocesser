@@ -21,7 +21,7 @@ class BenteTopTest extends AnyFlatSpec with ChiselScalatestTester {
       0x00400213 // addi x4, x0, 4 test if ebreak works
     )
     val pcStart = 0
-    test(new BenteTop(program, pcStart)).withAnnotations(Seq(WriteVcdAnnotation)) { c =>
+    test(new BenteTop(program, program, pcStart)).withAnnotations(Seq(WriteVcdAnnotation)) { c =>
       // An instruction's result is written back to the register file in the WB stage.
       // For a 5-stage pipeline, the first instruction writes back at the end of cycle 4. 
       // We have a extra register somewhere But it works with 5 for now.

@@ -23,7 +23,7 @@ class ADDITest extends AnyFlatSpec with ChiselScalatestTester {
     // Expected values
     val expectedValues = Array( 0, 0, 0, 0, 0, 3, 3, 3, 3, 6, 6, 6, 6, 4 )
 
-    test( new BenteTop(program, 0) ) { dut =>
+    test( new BenteTop(program, program, 0) ) { dut =>
       for (i <- 0 until 14) {
 
         val x1 = dut.io.debug_regFile(1).peek().litValue
