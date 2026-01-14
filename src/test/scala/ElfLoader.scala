@@ -109,9 +109,6 @@ object ElfLoader {
       
       val imem = new Array[Int](maxIndex)
       val dmem = new Array[Int](maxIndex)
-  
-      if (textSection != null) println(f"  .text: addr=0x$textAddr%x, offset=0x$textOffset%x, len=${text.length}")
-      if (dataSection != null) println(f"  .data: addr=0x$dataAddr%x, offset=0x$dataOffset%x, len=${data.length}")
       
       // imem: Prioritize Text (Code)
       if (dataSection != null) {
@@ -131,8 +128,7 @@ object ElfLoader {
   
       if (isStringTest && imem.length > 1) {
           // Patch 'addi a0, a0, 0' to 'addi a0, a0, 240' (0xF0)
-          // 0x0F050513 is addi a0, a0, 240
-          imem(1) = 0x0F050513 
+          imem(1) = 0x0F050513 // 0x0F050513 is addi a0, a0, 240
           println("ElfLoader: Patching 'string' test - Instruction 1 to add 240")
       }
 
