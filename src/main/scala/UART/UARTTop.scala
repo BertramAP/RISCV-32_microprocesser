@@ -7,7 +7,8 @@ import chisel3.util._
 class UARTTop() extends Module {
   val io = IO(new Bundle {
     val rx = Input(Bool()) // UART receive line
-    val led = Output(UInt(8.W)) // LED indicator
+    val led = Output(UInt(8.W)) // LED indicato
+    val tx = Output(Bool()) // UART transmit line
   })
   // memory
   val instructionMem = SyncReadMem(1024, UInt(8.W)) // Byte memory
@@ -17,11 +18,25 @@ class UARTTop() extends Module {
   // boolean for loading header:
   val length = RegInit(0.U(24.W))
   val loadCounter = RegInit(0.U(2.W)) // length is 3 bytes, loaded in one by one
+  
+  // UART instruction loader
   val instructionLoader = Module(new UARTInstructionLoader())
   val pc = RegInit(0.U(32.W))
   instructionLoader.io.uartRx := io.rx
 
-
+  // UART transmiter
+  val transmiter = Module(new UARTTransmiter())
+  io.tx := transmiter.io.uartTx
+  transmiter.io.send := false.B // Default
+  transmiter.io.dataIn := 0.U // Default
+  /*
+  when(instructionLoader.io.loadDone) {
+    transmiter.io.dataIn := instructionLoader.io.transferData
+    transmiter.io.send := true.B
+  } .otherwise {
+    transmiter.io.dataIn := 0.U
+    transmiter.io.send := false.B
+  } */
   
   val loadDoneReg = RegInit(0.U(8.W))
   /*
@@ -35,7 +50,7 @@ class UARTTop() extends Module {
     //loadDoneReg := instructionLoader.io.transferData
   } */ // From earlier tests
 
-  val sIdle :: loadLength :: sLoadData :: Nil = Enum(3)
+  val sIdle :: loadLength :: sLoadData :: sDumpMem :: Nil = Enum(4)
   val state = RegInit(sIdle)
   switch(state) {
     is(sIdle) { // We assume first loaded byte is an header
@@ -71,11 +86,22 @@ class UARTTop() extends Module {
           }
         }
         when(pc === length - 1.U) {
+          state := sDumpMem
+          pc := 0.U // Reset pc for dumping
+        }
+      }
+    }
+    is(sDumpMem)  { // For testing transmiter
+      transmiter.io.send := true.B
+      transmiter.io.dataIn := instructionMem.read(pc)
+      when(!transmiter.io.busy) {
+        pc := pc + 1.U
+        when(pc === length - 1.U) {
           state := sIdle
         }
       }
     }
-  }
+  }  
   io.led := loadDoneReg
 
 }
