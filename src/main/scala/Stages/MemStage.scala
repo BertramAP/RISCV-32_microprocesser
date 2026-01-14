@@ -14,7 +14,7 @@ class MemStage(data: Array[Int], memSize: Int = 2048) extends Module {
   io.out.done       := io.in.done
   
   // Initialize memory with data, padded with 0
-  val memInit = data.toIndexedSeq.map(x => (x & 0xFFFFFFFFL).U(32.W)) ++ Seq.fill(math.max(0, memSize - code.length))(0.U(32.W))
+  val memInit = data.toIndexedSeq.map(x => (x & 0xFFFFFFFFL).U(32.W)) ++ Seq.fill(math.max(0, memSize - data.length))(0.U(32.W))
   
   // Unified memory using Registers for unaligned access support
   val memory = RegInit(VecInit(memInit.take(memSize)))
