@@ -19,7 +19,7 @@ class ImmediateAddressMemoryTop extends Module {
     val memWrite   = Output(Bool())
     val memData    = Output(UInt(32.W))
 
-    val dbgMem     = Output(Vec(2048, UInt(32.W)))
+    //val dbgMem     = Output(Vec(128, UInt(32.W)))
   })
 
   val opcode = io.instr(6,0)
@@ -70,5 +70,5 @@ class ImmediateAddressMemoryTop extends Module {
   
 
   io.memData := mem.io.out.memData
-  io.dbgMem  := mem.io.dbgMem  
+  //io.dbgMem  := mem.io.dbgMem  
 }

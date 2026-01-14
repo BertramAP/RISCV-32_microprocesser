@@ -3,7 +3,7 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class FetchStage(code: Array[Int], PcStart: Int, memSize: Int = 4096) extends Module {
+class FetchStage(code: Array[Int], PcStart: Int, memSize: Int = 128) extends Module {
     
   val io = IO(new Bundle {
       val in = Input(new FetchBranchIO)

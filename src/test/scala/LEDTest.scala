@@ -8,8 +8,9 @@ class LEDTest extends AnyFlatSpec with ChiselScalatestTester {
     val program = Array(
       0x00000093, // addi x1 x0 0     | Init LED to off
       0x00000113, // addi x2 x0 0     | Set counter to 0
-      0x007f31b7, // lui x3 2035      | Set counter target to 50M/6 = 8333333
-      0x81518193, // addi x3 x3 -2027 | Set counter target to 50M/6 = 8333333
+      // 0x007f31b7, // lui x3 2035      | Set counter target to 50M/6 = 8333333
+      // 0x81518193, // addi x3 x3 -2027 | Set counter target to 50M/6 = 8333333
+      0x01400193, // addi x3 x0 20
       0x00000013, // nop
       0x00000013, // nop
 
@@ -44,9 +45,8 @@ class LEDTest extends AnyFlatSpec with ChiselScalatestTester {
 
       var currentClock = 0
 
-      for (i <- 0 until 1000) {
+      for (i <- 0 until 260) {
         println("Current clock: " + currentClock + " current LED status: " + dut.io.led.peek().litValue)
-        //println("x2 register:       " + dut.io.debug_regFile(2).peek().litValue )
         currentClock += 1;
         dut.clock.step(1)
       }

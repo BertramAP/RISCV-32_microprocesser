@@ -5,6 +5,7 @@ import chisel3.util._
 
 class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val io = IO(new Bundle {
+    /*
     // debug outputs for each stage
     val if_pc        = Output(UInt(32.W))
     val if_instr     = Output(UInt(32.W))
@@ -35,20 +36,21 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
     val wb_wbEnable = Output(Bool())
 
     val done = Output(Bool())
-    val debug_regFile = Output(Vec(32, UInt(32.W)))
+    //val debug_regFile = Output(Vec(32, UInt(32.W)))
 
     // Board outputs
-    val led = Output(Bool())
 
     // Board UART
     val uartRx = Input(Bool())
     val uartTx = Output(Bool())
+    */
+    val led = Output(Bool())
   })
-  val done = WireDefault(false.B)
-  io.done := done
+  // val done = WireDefault(false.B)
+  // io.done := done
 
   val fetchStage = Module(new FetchStage(code, PcStart))
-  fetchStage.io.in.done := done
+  fetchStage.io.in.done := WireDefault(false.B)
 
   val shouldStall = Wire(Bool())
   fetchStage.io.in.stall := shouldStall
@@ -56,8 +58,8 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
 
-  io.if_pc := fetchStage.io.out.pc
-  io.if_instr := fetchStage.io.out.instr
+  // io.if_pc := fetchStage.io.out.pc
+  // io.if_instr := fetchStage.io.out.instr
 
   val decodeStage = Module(new DecodeStage())
   decodeStage.io.in := ifIdReg
@@ -72,14 +74,14 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   val executeStage = Module(new ExecuteStage())
   fetchStage.io.in <> executeStage.io.BranchOut
   executeStage.io.in := idExReg
-  io.ex_aluOut := executeStage.io.out.aluOut
+  // io.ex_aluOut := executeStage.io.out.aluOut
 
   
   // EX/MEM pipeline registers
   val exMemReg = RegInit(0.U.asTypeOf(new ExecuteMemIO))
   exMemReg := executeStage.io.out
     
-  val memStage = Module(new MemStage(code, 4096))
+  val memStage = Module(new MemStage(code, 128))
   memStage.io.in := exMemReg
   
   // MEM/WB pipeline registers
@@ -93,7 +95,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   registerFile.io.writeData := writeBackStage.io.rfWriteData
   registerFile.io.regWrite := writeBackStage.io.rfRegWrite
   
-  done := memWriteBackReg.done
+  // done := memWriteBackReg.done
   
   // Hazard Detection (Load-Use -> Stall)
   // Check if instruction in EX (idExReg) is a Load and dest matches rs1 or rs2 of instruction in ID
@@ -170,6 +172,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   }
 
   // Debug outputs
+  /*
   io.uartTx := false.B // Not implemented
 
   io.ifid_instr := ifIdReg.instr
@@ -179,7 +182,7 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
   io.id_rd := idExReg.dest(4,0)
   io.id_imm := decodeStage.io.out.imm
   io.id_regWrite := decodeStage.io.out.regWrite
-  io.debug_regFile := registerFile.io.debug_registers
+  //io.debug_regFile := registerFile.io.debug_registers
 
   io.ex_rd := executeStage.io.out.rd
   io.ex_regWrite := executeStage.io.out.regWrite
@@ -192,14 +195,14 @@ class BenteTop(code: Array[Int], PcStart: Int) extends Module {
 
   io.wb_wdata := writeBackStage.io.rfWriteData
   io.wb_rd := writeBackStage.io.rfWriteRd
-  io.led := io.debug_regFile(1) === 1.U // Enable led by setting x1 to 1
 
   // For debugging writeback stage
   io.id_wbEnable := decodeStage.io.out.regWrite
   io.ex_wbEnable := executeStage.io.out.regWrite
   io.mem_wbEnable := memStage.io.out.wbRegWrite
   io.wb_wbEnable := writeBackStage.io.rfRegWrite
-  
+  */
+  io.led := registerFile.io.x1 === 1.U // Enable led by setting x1 to 1
 }
 object StagesCombined extends App {
   // We do 100_000_000 clock cycles per second

@@ -2,13 +2,13 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class MemStage(code: Array[Int], memSize: Int = 2048) extends Module {
+class MemStage(code: Array[Int], memSize: Int = 128) extends Module {
   val io = IO(new Bundle {
     // from EX/MEM
     val in = Input(new ExecuteMemIO)
     // to MEM/WB
     val out = Output(new MemWbIO)
-    val dbgMem = Output(Vec(memSize, UInt(32.W)))
+    //val dbgMem = Output(Vec(memSize, UInt(32.W)))
   })
   // Forward control signals
   io.out.wbRegWrite := io.in.regWrite
@@ -56,5 +56,5 @@ class MemStage(code: Array[Int], memSize: Int = 2048) extends Module {
   io.out.aluOut  := io.in.aluOut
   io.out.wbRd       := io.in.rd
   io.out.done       := io.in.done
-  io.dbgMem := dmem
+  //io.dbgMem := dmem
 }
