@@ -12,7 +12,6 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
     val led = Output(UInt(8.W)) // LED indicators
   })
 
-  io.tx := true.B // idle high (no UART TX yet)
 
   val core = Module(new BenteTop(
     Array.fill(memSizeWords)(0),
@@ -25,7 +24,7 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   // UART byte receiver
   val uart = Module(new UARTInstructionLoader())
   uart.io.uartRx := io.rx
-
+  // Loader FSM: header (memUsed) + 3-byte length + payload bytes
   // Loader FSM: header (memUsed) + 3-byte length + payload bytes
   val sIdle :: sLen :: sData :: Nil = Enum(3)
   val state = RegInit(sIdle)
@@ -68,16 +67,11 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
     runReg := true.B
   }
 
-
   switch(state) {
     is(sIdle) {
       when(uart.io.loadDone) {
         memUsed := uart.io.transferData(0)
-        lengthBytes := 0.U
-        lenCount := 0.U
         byteIndex := 0.U
-        byteCounter := 0.U
-        wordBuffer := 0.U
         state := sLen
       }
     }
@@ -135,7 +129,15 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
     }.elsewhen(core.io.done) {
       doneLatched := true.B
     }
-
+  val transmiter = Module(new UART.UARTTransmiter())
+  io.tx := transmiter.io.uartTx
+  when(doneLatched) {
+    transmiter.io.dataIn := core.io.debug_regFile(10)(7,0) // example: send reg x10 (a0) LSB
+    transmiter.io.send := true.B
+  }.otherwise {
+    transmiter.io.dataIn := 0.U
+    transmiter.io.send := false.B
+  }
   core.io.run := runReg && loadedAll && !loadingActive && !doneLatched
 
   // LED map:

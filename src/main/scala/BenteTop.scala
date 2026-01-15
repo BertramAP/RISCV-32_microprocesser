@@ -35,15 +35,15 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
     val wb_rd       = Output(UInt(5.W))
     val wb_wbEnable = Output(Bool())
 
-    val done = Output(Bool())
-    //val debug_regFile = Output(Vec(32, UInt(32.W)))
-
+    val debug_regFile = Output(Vec(32, UInt(32.W)))
+    */
     // Board outputs
+    val done = Output(Bool())
 
     // Board UART
     val uartRx = Input(Bool())
     val uartTx = Output(Bool())
-    */
+  
     // Instruction memory write ports for testing
     val imemWe    = Input(Bool())
     val imemWaddr = Input(UInt(log2Ceil(memSizeWords).W))
@@ -56,14 +56,11 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
 
     val run = Input(Bool())
     val led = Output(Bool())
-    val done = Output(Bool())
   })
-  // io.done := done
+  io.done := doneWire
 
-  val imemInit = imemInitArr.toIndexedSeq.map(x => (x & 0xFFFFFFFFL).U(32.W)) ++
-    Seq.fill(math.max(0, memSizeWords - imemInitArr.length))(0.U(32.W))
-  val imem = RegInit(VecInit(imemInit.take(memSizeWords)))
-
+  val imem = SyncReadMem(memSizeWords, UInt(32.W))
+  
   when(io.imemWe) {
     imem(io.imemWaddr) := io.imemWdata
   }
@@ -84,8 +81,8 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
 
-  // io.if_pc := fetchStage.io.out.pc
-  // io.if_instr := fetchStage.io.out.instr
+  io.if_pc := fetchStage.io.out.pc
+  io.if_instr := fetchStage.io.out.instr
 
   val decodeStage = Module(new DecodeStage())
   decodeStage.io.in := ifIdReg
@@ -223,7 +220,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   io.id_rd := idExReg.dest(4,0)
   io.id_imm := decodeStage.io.out.imm
   io.id_regWrite := decodeStage.io.out.regWrite
-  //io.debug_regFile := registerFile.io.debug_registers
+  io.debug_regFile := registerFile.io.debug_registers
 
   io.ex_rd := executeStage.io.out.rd
   io.ex_regWrite := executeStage.io.out.regWrite
