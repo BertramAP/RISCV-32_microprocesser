@@ -75,10 +75,10 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
         state := sLen
       }
     }
-
+    
     is(sLen) {
       when(uart.io.loadDone) {
-        lengthBytes := Cat(uart.io.transferData, lengthBytes(23, 8)) // little endian
+        lengthBytes := Cat(uart.io.transferData, lengthBytes(23, 8)) 
         lenCount := lenCount + 1.U
         when(lenCount === 2.U) {
           lenCount := 0.U
