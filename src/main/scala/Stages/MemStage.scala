@@ -2,11 +2,14 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class MemStage(data: Array[Int], memSize: Int = 2048) extends Module {
+class MemStage(data: Array[Int], memSize: Int = 128) extends Module {
   val io = IO(new Bundle {
     val in = Input(new ExecuteMemIO)
     val out = Output(new MemWbIO)
-    val dbgMem = Output(Vec(memSize, UInt(32.W)))
+    //val dbgMem = Output(Vec(memSize, UInt(32.W)))
+    val dmemWe    = Input(Bool())
+    val dmemWaddr = Input(UInt(log2Ceil(memSize).W))
+    val dmemWdata = Input(UInt(32.W))
   })
   
   io.out.wbRegWrite := io.in.regWrite
@@ -16,8 +19,13 @@ class MemStage(data: Array[Int], memSize: Int = 2048) extends Module {
   // Initialize memory with data, padded with 0
   val memInit = data.toIndexedSeq.map(x => (x & 0xFFFFFFFFL).U(32.W)) ++ Seq.fill(math.max(0, memSize - data.length))(0.U(32.W))
   
-  // Unified memory using Registers for unaligned access support
+  // Data Memory
   val memory = RegInit(VecInit(memInit.take(memSize)))
+  when(io.dmemWe) {
+    memory(io.dmemWaddr) := io.dmemWdata
+  }.elsewhen(io.in.memWrite) {
+    // Handled below in store logic
+  }
 
   // Address decoding
   val wordIndex = io.in.aluOut >> 2
@@ -26,7 +34,8 @@ class MemStage(data: Array[Int], memSize: Int = 2048) extends Module {
   
   // Data Read Logic
   val lowerWord = memory(effectiveAddr)
-  val nextAddr = effectiveAddr + 1.U
+  val last = (memSize - 1).U
+  val nextAddr = Mux(effectiveAddr === last, last, effectiveAddr + 1.U)
   val upperWord = memory(nextAddr) 
   
   val doubleWord = Cat(upperWord, lowerWord)
@@ -46,7 +55,7 @@ class MemStage(data: Array[Int], memSize: Int = 2048) extends Module {
   }
   
   // Store Logic
-  when(io.in.memWrite) {
+  when(io.in.memWrite && !io.dmemWe) {
     val storeData = io.in.storeData
     val writeMask = WireDefault(0.U(32.W))
     switch(io.in.funct3) {
@@ -76,6 +85,7 @@ class MemStage(data: Array[Int], memSize: Int = 2048) extends Module {
   
   io.out.memData := memData
   io.out.aluOut  := io.in.aluOut
-  io.out.wbRd    := io.in.rd
-  io.dbgMem      := memory
+  io.out.wbRd       := io.in.rd
+  io.out.done       := io.in.done
+  //io.dbgMem := dmem
 }

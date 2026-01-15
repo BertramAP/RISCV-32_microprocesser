@@ -6,18 +6,17 @@ from elftools.elf.elffile import ELFFile
 PORT = '/dev/ttyUSB1'  # Change this to your UART port
 BAUDRATE = 115200 # Shloud be the same for all of us, so dont change it
 # Use elf file for meta data
-FILE = "/home/ap/Dokumenter/RISCV-32_microprocesser/tests/ripes/add.out"  # Change this to the elf file path you want to upload
+FILE = "/home/ap/Dokumenter/RISCV-32_microprocesser/tests/ripes/and.out"  # Change this to the elf file path you want to upload
 
-def upload_firmware(port, baudrate, file_path):
-    ser = serial.Serial(port, baudrate, timeout=1)
-    print(f"Opened port {port} at {baudrate} baud.")
+def uploadFirmware(ser, file_path):
+    print(f"Opened port {ser.port} at {ser.baudrate} baud.")
     with open(file_path, 'rb') as f:
         elf = ELFFile(f)
         text_section = elf.get_section_by_name('.text')
         if text_section:
             print(f"fount .text section")
             text_data = text_section.data()
-            send_packet(ser, packet_type=0x00, data=text_data)
+            sendPacket(ser, packet_type=0x00, data=text_data)
         else:
             print(f".text section not found in ELF file.")
         
@@ -25,15 +24,14 @@ def upload_firmware(port, baudrate, file_path):
         if data_section:
             print(f"fount .data section")
             data_data = data_section.data()
-            send_packet(ser, packet_type=0x01, data=data_data)
+            sendPacket(ser, packet_type=0x01, data=data_data)
         else:
             print(f".data section not found in ELF file.")
     
 
     print("Upload complete.")
-    ser.close()
 
-def send_packet(ser, packet_type, data):
+def sendPacket(ser, packet_type, data):
     length = len(data)
     header = struct.pack("<BI", packet_type, length) # < for little-endian, B for unsigned char, I for unsigned int (4 bytes)
 
@@ -43,5 +41,25 @@ def send_packet(ser, packet_type, data):
     ser.write(data)
     time.sleep(0.01)  # Small delay to ensure data is sent properly
 
-
-upload_firmware(PORT, BAUDRATE, FILE)
+def listenToUART(ser):
+    buffer = bytearray()
+    try:
+        while True:
+            if ser.in_waiting > 0:
+                data = ser.read(ser.in_waiting)
+                buffer.extend(data)
+                x = 0
+                while len(buffer) >= 4:
+                    packet = buffer[:4]
+                    buffer = buffer[4:]
+                    val = struct.unpack("<I", packet)[0] 
+                    print(f"x{x}: {hex(val)}: ", end='', flush=True)
+                    x += 1
+                time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("Stopping UART listener.")
+ser = serial.Serial(PORT, BAUDRATE, timeout=1)
+uploadFirmware(ser, FILE)
+listenToUART(ser)
+ser.close()
+print("Closed UART port.")

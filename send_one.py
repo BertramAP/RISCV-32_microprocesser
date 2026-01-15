@@ -1,13 +1,18 @@
 import serial, time
 
-PORT = "/dev/ttyUSB1"    
+PORT = "COM6"
 BAUD = 115200
 
-with serial.Serial(PORT,115200) as ser:
+IMEM = [0x00100093, 0x00000073]  # addi x1,1 ; ecall
+DMEM = [0x00000000]
+
+def send_block(ser, mem_used, words):
+    payload = b"".join((w & 0xFFFFFFFF).to_bytes(4, "little") for w in words)
+    frame = bytes([mem_used]) + len(payload).to_bytes(3, "little") + payload
+    ser.write(frame)
+    ser.flush()
+
+with serial.Serial(PORT, BAUD, timeout=1) as ser:
     time.sleep(0.2)
-    for b in [0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80, 0x55, 0xAA, 0xFF, 0x00]:
-        ser.write(bytes([b]))
-        ser.flush()
-        time.sleep(0.3)
-
-
+    send_block(ser, 0, IMEM)  # 0 = IMEM
+    send_block(ser, 1, DMEM)  # 1 = DMEM
