@@ -12,7 +12,7 @@ class RegisterFile extends Module {
         val writeData = Input( UInt(32.W) )
         val readData1 = Output( UInt(32.W) )
         val readData2 = Output( UInt(32.W) )
-        // val debug_registers = Output(Vec(32, UInt(32.W)))
+        val debug_registers = Output(Vec(32, UInt(32.W)))
         val x1 = Output(Bool())
     })
 
@@ -36,6 +36,6 @@ class RegisterFile extends Module {
         }
     }
 
-    //io.debug_registers := registers // For debugging
+    io.debug_registers := registers // For debugging
     io.x1 := registers(1)
 }

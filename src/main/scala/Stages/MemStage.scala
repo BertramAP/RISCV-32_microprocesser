@@ -15,12 +15,9 @@ class MemStage(data: Array[Int], memSize: Int = 128) extends Module {
   io.out.wbRegWrite := io.in.regWrite
   io.out.wbMemToReg := io.in.memToReg
   io.out.done       := io.in.done
-  
-  // Initialize memory with data, padded with 0
-  val memInit = data.toIndexedSeq.map(x => (x & 0xFFFFFFFFL).U(32.W)) ++ Seq.fill(math.max(0, memSize - data.length))(0.U(32.W))
-  
-  // Data Memory
-  val memory = RegInit(VecInit(memInit.take(memSize)))
+
+  val memory = SyncReadMem(memSize, UInt(32.W))
+    
   when(io.dmemWe) {
     memory(io.dmemWaddr) := io.dmemWdata
   }.elsewhen(io.in.memWrite) {
@@ -36,7 +33,7 @@ class MemStage(data: Array[Int], memSize: Int = 128) extends Module {
   val lowerWord = memory(effectiveAddr)
   val last = (memSize - 1).U
   val nextAddr = Mux(effectiveAddr === last, last, effectiveAddr + 1.U)
-  val upperWord = memory(nextAddr) 
+  val upperWord = memory(nextAddr)
   
   val doubleWord = Cat(upperWord, lowerWord)
   val alignedWord = doubleWord >> (offset * 8.U)

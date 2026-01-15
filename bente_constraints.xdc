@@ -11,8 +11,8 @@ set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 3.3 [current_design]
 
 ##USB-RS232 Interface
-#set_property PACKAGE_PIN A18 [get_ports io_tx]
-#set_property PACKAGE_PIN B18 [get_ports io_rx]
+set_property PACKAGE_PIN A18 [get_ports io_tx]
+set_property PACKAGE_PIN B18 [get_ports io_rx]
 
 #set_property PACKAGE_PIN B18 [get_ports RsRx]
 #set_property PACKAGE_PIN A18 [get_ports RsTx]
@@ -36,14 +36,14 @@ set_property CONFIG_VOLTAGE 3.3 [current_design]
 #set_property PACKAGE_PIN R2  [get_ports {io_sw[15]}]
 
 ## LEDs [7:0]
-set_property PACKAGE_PIN U16 [get_ports {io_led}]
-#set_property PACKAGE_PIN E19 [get_ports {io_led[1]}]
-#set_property PACKAGE_PIN U19 [get_ports {io_led[2]}]
-#set_property PACKAGE_PIN V19 [get_ports {io_led[3]}]
-#set_property PACKAGE_PIN W18 [get_ports {io_led[4]}]
-#set_property PACKAGE_PIN U15 [get_ports {io_led[5]}]
-#set_property PACKAGE_PIN U14 [get_ports {io_led[6]}]
-#set_property PACKAGE_PIN V14 [get_ports {io_led[7]}]
+set_property PACKAGE_PIN U16 [get_ports {io_led[0]}]
+set_property PACKAGE_PIN E19 [get_ports {io_led[1]}]
+set_property PACKAGE_PIN U19 [get_ports {io_led[2]}]
+set_property PACKAGE_PIN V19 [get_ports {io_led[3]}]
+set_property PACKAGE_PIN W18 [get_ports {io_led[4]}]
+set_property PACKAGE_PIN U15 [get_ports {io_led[5]}]
+set_property PACKAGE_PIN U14 [get_ports {io_led[6]}]
+set_property PACKAGE_PIN V14 [get_ports {io_led[7]}]
 #set_property PACKAGE_PIN V13 [get_ports {io_led[8]}]
 #set_property PACKAGE_PIN V3  [get_ports {io_led[9]}]
 #set_property PACKAGE_PIN W3  [get_ports {io_led[10]}]
@@ -67,7 +67,7 @@ set_property PACKAGE_PIN T17 [get_ports reset]
 # BTN1
 #set_property PACKAGE_PIN A17 [get_ports {io_coin5}]
 # BTN2
-#set_property PACKAGE_PIN C15 [get_ports {io_buy}]
+set_property PACKAGE_PIN C15 [get_ports {io_buy}]
 # BTN3 -  can be used as manual clock
 #set_property PACKAGE_PIN C16 [get_ports {io_btn[3]}]
 

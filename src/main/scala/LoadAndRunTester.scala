@@ -66,6 +66,14 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   }.elsewhen(buyRise && loadedAll) {
     runReg := true.B
   }
+  // Registers for FSM
+  val coreImemWeReg   = RegInit(false.B)
+  val coreImemAddrReg = RegInit(0.U(32.W))
+  val coreImemDataReg = RegInit(0.U(32.W))
+
+  val coreDmemWeReg   = RegInit(false.B)
+  val coreDmemAddrReg = RegInit(0.U(32.W))
+  val coreDmemDataReg = RegInit(0.U(32.W))
 
   switch(state) {
     is(sIdle) {
@@ -98,12 +106,12 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
 
         when(atWordEnd) {
           when(memUsed === 0.U) {
-            core.io.imemWe := true.B
-            core.io.imemWaddr := wordAddr(log2Ceil(memSizeWords)-1, 0)
-            core.io.imemWdata := newWord
+            coreImemWeReg := true.B
+            coreImemAddrReg := wordAddr(log2Ceil(memSizeWords)-1, 0)
+            coreImemDataReg := newWord
           }.otherwise {
-            core.io.dmemWe := true.B
-            core.io.dmemWaddr := wordAddr(log2Ceil(memSizeWords)-1, 0)
+            coreDmemWeReg := true.B
+            coreDmemAddrReg := wordAddr(log2Ceil(memSizeWords)-1, 0)
             core.io.dmemWdata := newWord
           }
           wordBuffer := 0.U
