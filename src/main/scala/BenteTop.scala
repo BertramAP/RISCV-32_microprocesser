@@ -44,14 +44,8 @@ class BenteTop(imem: Array[Int], dmem: Array[Int], PcStart: Int) extends Module 
     val uartRx = Input(Bool())
     val uartTx = Output(Bool())
   })
-  val done = WireDefault(false.B)
-  io.done := done
 
   val fetchStage = Module(new FetchStage(imem, PcStart))
-  fetchStage.io.in.done := done
-
-  val shouldStall = Wire(Bool())
-  fetchStage.io.in.stall := shouldStall
 
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
@@ -97,7 +91,8 @@ class BenteTop(imem: Array[Int], dmem: Array[Int], PcStart: Int) extends Module 
   registerFile.io.writeData := writeBackStage.io.rfWriteData
   registerFile.io.regWrite := writeBackStage.io.rfRegWrite
   
-  done := memWriteBackReg.done
+  fetchStage.io.in.done := writeBackStage.io.done
+  io.done := writeBackStage.io.done
   
   // Hazard Detection (Load-Use -> Stall)
   // Check if instruction in EX (idExReg) is a Load and dest matches rs1 or rs2 of instruction in ID
@@ -106,8 +101,10 @@ class BenteTop(imem: Array[Int], dmem: Array[Int], PcStart: Int) extends Module 
   val rs1 = decodeStage.io.out.src1
   val rs2 = decodeStage.io.out.src2
 
+  val shouldStall = Wire(Bool())
   shouldStall := idExMemRead && (idExRd =/= 0.U) && (idExRd === rs1 || idExRd === rs2)
-  
+  fetchStage.io.in.stall := shouldStall
+
   val branchTaken = executeStage.io.BranchOut.branchTaken
 
   // IF/ID Update Logic

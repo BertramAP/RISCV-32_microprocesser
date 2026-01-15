@@ -9,9 +9,11 @@ class WritebackStage extends Module {
     val rfWriteData = Output(UInt(32.W))
     val rfWriteRd   = Output(UInt(5.W))
     val rfRegWrite  = Output(Bool())
+    val done        = Output(Bool())
   })
 
   io.rfWriteData := Mux(io.in.wbMemToReg, io.in.memData, io.in.aluOut)
   io.rfWriteRd   := io.in.wbRd
   io.rfRegWrite  := io.in.wbRegWrite && (io.in.wbRd =/= 0.U)
+  io.done        := io.in.done
 }

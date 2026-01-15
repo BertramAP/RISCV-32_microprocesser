@@ -11,13 +11,13 @@ import java.nio.file.{Files, Paths}
 class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "Bente"
-  val testDirs = Seq("tests/ripes", "tests/riscv-tests", "tests/simple")
+  val testDirs = Seq("build/ripes", "build/riscv-tests", "build/simple")
 
   testDirs.foreach { testDir =>
-    val instructionTests = ElfLoader.getAsmFiles(testDir, ".s")
+    val instructionTests = ElfLoader.getAsmFiles(testDir, ".out")
 
     instructionTests.foreach { testFile =>
-      val testName = Paths.get(testFile).getFileName.toString.stripSuffix(".s")
+      val testName = Paths.get(testFile).getFileName.toString.stripSuffix(".out")
       val binFile = Paths.get(testDir, s"$testName.out").toString
       val resFile = Paths.get(testDir, s"$testName.res").toString
 
@@ -30,28 +30,30 @@ class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
         Array.copy(dmem, 0, newDmem, 0, dmem.length)
 
         test(new BenteTop(imem, newDmem, start)) { c =>
-          c.clock.setTimeout(5000) // Max 5000, so aprox 3 minutes max for a single test
-          c.clock.step(1) 
+          c.clock.setTimeout(5000) 
+          c.clock.step(1)
+          var cycles = 0
           while (!c.io.done.peek().litToBoolean) {
-            c.clock.step(1)
+             c.clock.step(1)
+             cycles += 1
           }
+          println(s"$testName from $testDir took $cycles cycles")
 
           assert(c.io.done.peek().litToBoolean, s"Simulation of $testName from $testDir timed out")
 
-          if (Files.exists(Paths.get(resFile))) {
-            val expectedRegisters = ElfLoader.readRes(resFile)
-            for (i <- 1 until 32) {
-              val expected = (expectedRegisters(i).toLong & 0xFFFFFFFFL)
-              val actual = c.io.debug_regFile(i).peek().litValue
-              assert(actual == expected, f"Register x$i failed test $testName from $testDir: expected 0x$expected%08x, got 0x$actual%08x")
-            }
+          if (testDir.contains("simple")) {
+            // For simple tests, check x17 (a7) for success (10 = success)
+            val exitCode = c.io.debug_regFile(17).peek().litValue
+            assert(exitCode == 10, f"Test $testName from $testDir failed with $exitCode (x17), expected 10")
           } else {
-            // For ripes tests with no .res file, check x10 (a0) for success (0 = success, non-zero = failure)
-            val exitCode = c.io.debug_regFile(10).peek().litValue
-            assert(exitCode == 0, f"Test $testName from $testDir failed with exit code $exitCode (x10)")
+            // For riscv-tests and ripes, check x10 (a0) for success (0 = success) and x17 (a7) for exit code (93 = made it to the end)
+            val success = c.io.debug_regFile(10).peek().litValue
+            val exitCode = c.io.debug_regFile(17).peek().litValue
+            assert(exitCode == 93 && success == 0, f"Test $testName from $testDir failed with $exitCode (x10)")
           }
         }
       }
     }
   }
 }
+

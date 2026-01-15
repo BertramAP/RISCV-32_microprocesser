@@ -17,7 +17,7 @@ class FetchStage(code: Array[Int], PcStart: Int, memSize: Int = 4096) extends Mo
   //Program counter
   val Pc = RegInit((PcStart.toLong & 0xFFFFFFFFL).U(32.W))
   val nextPc = Mux(io.in.branchTaken, io.in.branchTarget, Pc + 4.U)
-  Pc := Mux(io.in.done || io.in.stall, Pc, nextPc)
+  Pc := Mux(io.in.done || io.in.stall, Pc, nextPc) // done on Ecall 
 
   io.out.pc := Pc
   // Mask PC to avoid out of bounds
