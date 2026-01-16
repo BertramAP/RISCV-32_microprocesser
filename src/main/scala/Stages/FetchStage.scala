@@ -16,8 +16,8 @@ class FetchStage(PcStart: Int, memSizeWords: Int = 128) extends Module {
 
   //Program counter
   val Pc = RegInit((PcStart.toLong & 0xFFFFFFFFL).U(32.W))
-  val nextPc = Mux(io.in.branchTaken, io.in.branchTarget, Pc + 1.U)
-  Pc := Mux(io.in.done || io.in.stall, Pc, nextPc)
+  val nextPc = Mux(io.in.branchTaken, io.in.branchTarget, Pc + 4.U)
+  Pc := Mux(io.in.done || io.in.stall, Pc, nextPc) // done on Ecall 
 
   io.out.pc := Pc
   val wordAddr = Pc(31, 2)(log2Ceil(memSizeWords) - 1, 0)

@@ -95,13 +95,7 @@ object ElfLoader {
       // Calculate offsets
       val textOffset = if (textSection != null) ((textAddr - minAddr) / 4).toInt else 0
       var dataOffset = if (dataSection != null) ((dataAddr - minAddr) / 4).toInt else 0
-      
-      // Patch for 'string' test: Relocate data to 0xF0 (240) to match expected .res
-      if (isStringTest) {
-         dataOffset = 60 // 240 / 4
-         println("ElfLoader: Patching 'string' test - Relocating Data to 0xF0")
-      }
-  
+
       // Size of memory
       val textEnd = textOffset + text.length
       val dataEnd = dataOffset + data.length
@@ -125,13 +119,31 @@ object ElfLoader {
       if (dataSection != null) {
         for (i <- data.indices) dmem(dataOffset + i) = data(i)
       }
-  
+      /*
       if (isStringTest && imem.length > 1) {
           // Patch 'addi a0, a0, 0' to 'addi a0, a0, 240' (0xF0)
           imem(1) = 0x0F050513 // 0x0F050513 is addi a0, a0, 240
           println("ElfLoader: Patching 'string' test - Instruction 1 to add 240")
       }
-
+      // Patch rv32i_all ADDI instruction due to assembler issue (resolved %lo to 0)
+      if (fileName.contains("rv32i_all")) {
+           // Fix instruction at 0x94 (index 37 from start?)
+           // imem index is absolute from 0. 0x94/4 = 37.
+        if (imem.length > 37 && imem(37) == 0x00030313) {
+              imem(37) = 0x0A030313 // Set immediate to 0xA0 (address of mem_section)
+              println("ElfLoader: Patching 'rv32i_all' test - Instruction 37 to add 160")
+        }    
+           // Fix data section (dmem) alignment/corruption
+           // Expected data at 0x400 (word index 0x100 = 256)
+        if (dmem.length > 259) {
+              dmem(256) = 0x80017F80 // 0x400: .byte 0x80, 0x7F, .half 0x8001
+              dmem(257) = 0x00007FFF // 0x404: .half 0x7FFF, .align 2 (padding)
+              dmem(258) = 0xDEADBEEF // 0x408: .word 0xDEADBEEF
+              dmem(259) = 0x01020304 // 0x40C: .word 0x01020304
+              println("ElfLoader: Patching 'rv32i_all' test - Data section")
+        }
+      }
+      */
       (imem, dmem, elf.e_entry.toInt)
     }
   }

@@ -3,6 +3,7 @@ package stages
 import chisel3._
 import chisel3.util._
 import UART.UARTInstructionLoader
+import spire.std.byte
 
 class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module {
   val io = IO(new Bundle {
@@ -85,6 +86,7 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
 
       when(uart.io.loadDone) {
         memUsed := uart.io.transferData(0)
+        byteIndex := 0.U
         state := sLen
       }
     }

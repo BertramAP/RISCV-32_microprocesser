@@ -53,12 +53,13 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
     val run = Input(Bool())
     val led = Output(Bool())
   })
-
+  // Instruction memory
   val imem = SyncReadMem(memSizeWords, UInt(32.W))
   
   when(io.imemWe) {
     imem(io.imemWaddr) := io.imemWdata
   }
+  // Fetch stage
   val fetchStage = Module(new FetchStage(PcStart, memSizeWords))
   fetchStage.io.imemInstr := imem(fetchStage.io.imemAddr)
 
@@ -125,6 +126,8 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   
   doneWire := memWriteBackReg.done
   io.done := doneWire
+  fetchStage.io.in.done := writeBackStage.io.done
+  io.done := writeBackStage.io.done
   
   // Hazard Detection (Load-Use -> Stall)
   // Check if instruction in EX (idExReg) is a Load and dest matches rs1 or rs2 of instruction in ID
@@ -134,7 +137,9 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val rs2 = decodeStage.io.out.src2
 
   shouldStall := idExMemRead && (idExRd =/= 0.U) && (idExRd === rs1 || idExRd === rs2)
-  
+  // fetchStage.io.in.stall := shouldStall // Overwritten by line 71 with globalStall
+
+
   val branchTaken = executeStage.io.BranchOut.branchTaken
 
   // IF/ID Update Logic
