@@ -82,9 +82,10 @@ class ExecuteMemIO extends Bundle {
 }
 
 class MemWbIO extends Bundle {
-    val memData    = UInt(32.W)
+    val memData    = UInt(64.W) // Widened for unaligned access support
     val aluOut     = UInt(32.W)
     val wbRd       = UInt(5.W)
+    val funct3     = UInt(3.W)
 
     // Control signal for writeback stage
     val wbRegWrite = Bool()
