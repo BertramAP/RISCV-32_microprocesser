@@ -18,7 +18,7 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
     Array.fill(memSizeWords)(0),
     PcStart,
     memSizeWords
-    ))
+  ))
 
 
   // UART byte receiver
@@ -112,7 +112,7 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
           }.otherwise {
             coreDmemWeReg := true.B
             coreDmemAddrReg := wordAddr(log2Ceil(memSizeWords)-1, 0)
-            core.io.dmemWdata := newWord
+            coreDmemDataReg := newWord
           }
           wordBuffer := 0.U
           byteCounter := 0.U
@@ -132,11 +132,11 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   }
 
   val doneLatched = RegInit(false.B)
-    when(!core.io.run) {
-      doneLatched := false.B
-    }.elsewhen(core.io.done) {
-      doneLatched := true.B
-    }
+  when(loadingActive || buyRise) {
+    doneLatched := false.B
+  }.elsewhen(core.io.done) {
+    doneLatched := true.B
+  }
   val transmiter = Module(new UART.UARTTransmiter())
   io.tx := transmiter.io.uartTx
   when(doneLatched) {
@@ -147,15 +147,22 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
     transmiter.io.send := false.B
   }
   core.io.run := runReg && loadedAll && !loadingActive && !doneLatched
-
-  // LED map:
-  // [0] loadingActive
-  // [1] loadedAll
-  // [2] running (core.io.run)
-  // [3] doneLatched
-  // [4] core LED output (x1==1) (your existing core.io.led)
-  // [7:5] unused
-  io.led := Cat(0.U(3.W), core.io.led, doneLatched, core.io.run, loadedAll, loadingActive)
+  
+  core.io.imemWe    := coreImemWeReg
+  core.io.imemWaddr := coreImemAddrReg
+  core.io.imemWdata := coreImemDataReg
+  
+  core.io.dmemWe    := coreDmemWeReg
+  core.io.dmemWaddr := coreDmemAddrReg
+  core.io.dmemWdata := coreDmemDataReg
+  /* LED map:
+  [0] loadingActive
+  [1] loadedAll
+  [2] running (core.io.run)
+  [3] doneLatched
+  [4] core LED output (x1===1)
+  [7:5] unused */
+  io.led := Cat(0.U(2.W), core.io.led, doneLatched, core.io.done, core.io.run, loadedAll, loadingActive)
   }
 
 object LoadAndRunTester extends App {

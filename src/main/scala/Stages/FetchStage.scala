@@ -16,7 +16,7 @@ class FetchStage(PcStart: Int, memSizeWords: Int = 128) extends Module {
 
   //Program counter
   val Pc = RegInit((PcStart.toLong & 0xFFFFFFFFL).U(32.W))
-  val nextPc = Mux(io.in.branchTaken, io.in.branchTarget, Pc + 4.U)
+  val nextPc = Mux(io.in.branchTaken, io.in.branchTarget, Pc + 1.U)
   Pc := Mux(io.in.done || io.in.stall, Pc, nextPc)
 
   io.out.pc := Pc
