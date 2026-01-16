@@ -19,7 +19,7 @@ class MemStage(data: Array[Int], memSize: Int = 128) extends Module {
   val memory = SyncReadMem(memSize, UInt(32.W))
     
   when(io.dmemWe) {
-    memory(io.dmemWaddr) := io.dmemWdata
+    memory.write(io.dmemWaddr, io.dmemWdata)
   }.elsewhen(io.in.memWrite) {
     // Handled below in store logic
   }
@@ -30,10 +30,10 @@ class MemStage(data: Array[Int], memSize: Int = 128) extends Module {
   val offset = io.in.aluOut(1, 0)
   
   // Data Read Logic
-  val lowerWord = memory(effectiveAddr)
+  val lowerWord = memory.read(effectiveAddr)
   val last = (memSize - 1).U
   val nextAddr = Mux(effectiveAddr === last, last, effectiveAddr + 1.U)
-  val upperWord = memory(nextAddr)
+  val upperWord = memory.read(nextAddr)
   
   val doubleWord = Cat(upperWord, lowerWord)
   val alignedWord = doubleWord >> (offset * 8.U)
@@ -72,17 +72,17 @@ class MemStage(data: Array[Int], memSize: Int = 128) extends Module {
     val writeMaskHigh = writeMask64(63, 32)
     
     when(writeMaskLow =/= 0.U) {
-        memory(effectiveAddr) := (lowerWord & ~writeMaskLow) | writeDataLow
+        memory.write(effectiveAddr, (lowerWord & ~writeMaskLow) | writeDataLow)
     }
     
     when(writeMaskHigh =/= 0.U) {
-        memory(nextAddr) := (upperWord & ~writeMaskHigh) | writeDataHigh
+        memory.write(nextAddr, (upperWord & ~writeMaskHigh) | writeDataHigh)
     }
   }
   
   io.out.memData := memData
   io.out.aluOut  := io.in.aluOut
   io.out.wbRd       := io.in.rd
-  io.out.done       := io.in.done
+  io.out.done       := io.in.done // Should be also be determined by if there is any instruction memory left
   //io.dbgMem := dmem
 }
