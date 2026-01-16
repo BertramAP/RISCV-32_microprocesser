@@ -27,13 +27,16 @@ def uploadFirmware(ser, file_path):
             sendPacket(ser, packet_type=0x01, data=data_data)
         else:
             print(f".data section not found in ELF file.")
+            # Send 4 bytes of zeros (one word) to address 0 of Data Memory
+            dummy_data = b'\x00\x00\x00\x00'
+            sendPacket(ser, packet_type=0x01, data=dummy_data)
     
 
     print("Upload complete.")
 
 def sendPacket(ser, packet_type, data):
     length = len(data)
-    header = struct.pack("<BI", packet_type, length) # < for little-endian, B for unsigned char, I for unsigned int (4 bytes)
+    header = struct.pack("<B", packet_type) + length.to_bytes(3, "little") # < for little-endian, B for unsigned char, I for unsigned int (4 bytes)
 
     print(f"sending header: type={packet_type} with length {length}")
     ser.write(header)
@@ -60,6 +63,8 @@ def listenToUART(ser):
         print("Stopping UART listener.")
 ser = serial.Serial(PORT, BAUDRATE, timeout=1)
 uploadFirmware(ser, FILE)
+ser.close()
+ser = serial.Serial(PORT, BAUDRATE, timeout=1)
 listenToUART(ser)
 ser.close()
 print("Closed UART port.")
