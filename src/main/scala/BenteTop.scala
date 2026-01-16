@@ -53,12 +53,13 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
     val run = Input(Bool())
     val led = Output(Bool())
   })
-
+  // Instruction memory
   val imem = SyncReadMem(memSizeWords, UInt(32.W))
   
   when(io.imemWe) {
     imem(io.imemWaddr) := io.imemWdata
   }
+  // Fetch stage
   val fetchStage = Module(new FetchStage(PcStart, memSizeWords))
   fetchStage.io.imemInstr := imem(fetchStage.io.imemAddr)
 
@@ -135,9 +136,9 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val rs1 = decodeStage.io.out.src1
   val rs2 = decodeStage.io.out.src2
 
-  val shouldStall = Wire(Bool())
   shouldStall := idExMemRead && (idExRd =/= 0.U) && (idExRd === rs1 || idExRd === rs2)
-  fetchStage.io.in.stall := shouldStall
+  // fetchStage.io.in.stall := shouldStall // Overwritten by line 71 with globalStall
+
 
   val branchTaken = executeStage.io.BranchOut.branchTaken
 
