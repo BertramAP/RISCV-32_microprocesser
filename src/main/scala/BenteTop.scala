@@ -5,7 +5,7 @@ import chisel3.util._
 
 class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, memSizeWords: Int = 128) extends Module {
   val io = IO(new Bundle {
-    /*
+    
     // debug outputs for each stage
     val if_pc        = Output(UInt(32.W))
     val if_instr     = Output(UInt(32.W))
@@ -34,16 +34,12 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
     val wb_wdata    = Output(UInt(32.W))
     val wb_rd       = Output(UInt(5.W))
     val wb_wbEnable = Output(Bool())
-
-    val done = Output(Bool())
-    //val debug_regFile = Output(Vec(32, UInt(32.W)))
-
+    
+    val debug_regFile = Output(Vec(32, UInt(32.W)))
+  
     // Board outputs
-
-    // Board UART
-    val uartRx = Input(Bool())
-    val uartTx = Output(Bool())
-    */
+    val done = Output(Bool())
+    
     // Instruction memory write ports for testing
     val imemWe    = Input(Bool())
     val imemWaddr = Input(UInt(log2Ceil(memSizeWords).W))
@@ -56,19 +52,16 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
 
     val run = Input(Bool())
     val led = Output(Bool())
-    val done = Output(Bool())
   })
-  // io.done := done
 
-  val imemInit = imemInitArr.toIndexedSeq.map(x => (x & 0xFFFFFFFFL).U(32.W)) ++
-    Seq.fill(math.max(0, memSizeWords - imemInitArr.length))(0.U(32.W))
-  val imem = RegInit(VecInit(imemInit.take(memSizeWords)))
-
+  val imem = SyncReadMem(memSizeWords, UInt(32.W))
+  
   when(io.imemWe) {
     imem(io.imemWaddr) := io.imemWdata
   }
   val fetchStage = Module(new FetchStage(PcStart, memSizeWords))
   fetchStage.io.imemInstr := imem(fetchStage.io.imemAddr)
+
 
   val doneWire = WireDefault(false.B)
   val shouldStall = Wire(Bool())
@@ -77,6 +70,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   fetchStage.io.in.stall := globalStall
   fetchStage.io.in.branchTaken  := false.B
   fetchStage.io.in.branchTarget := 0.U
+  io.done := doneWire
 
  
 
@@ -84,8 +78,8 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
 
-  // io.if_pc := fetchStage.io.out.pc
-  // io.if_instr := fetchStage.io.out.instr
+  io.if_pc := fetchStage.io.out.pc
+  io.if_instr := fetchStage.io.out.instr
 
   val decodeStage = Module(new DecodeStage())
   decodeStage.io.in := ifIdReg
@@ -103,7 +97,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
   
   executeStage.io.in := idExReg
-  // io.ex_aluOut := executeStage.io.out.aluOut
+  io.ex_aluOut := executeStage.io.out.aluOut
 
   
   // EX/MEM pipeline registers
@@ -217,8 +211,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   }
 
   // Debug outputs
-  /*
-  io.uartTx := false.B // Not implemented
+
 
   io.ifid_instr := ifIdReg.instr
 
@@ -227,7 +220,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   io.id_rd := idExReg.dest(4,0)
   io.id_imm := decodeStage.io.out.imm
   io.id_regWrite := decodeStage.io.out.regWrite
-  //io.debug_regFile := registerFile.io.debug_registers
+  io.debug_regFile := registerFile.io.debug_registers
 
   io.ex_rd := executeStage.io.out.rd
   io.ex_regWrite := executeStage.io.out.regWrite
@@ -246,9 +239,9 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   io.ex_wbEnable := executeStage.io.out.regWrite
   io.mem_wbEnable := memStage.io.out.wbRegWrite
   io.wb_wbEnable := writeBackStage.io.rfRegWrite
-  */
+  
   io.led := registerFile.io.x1 === 1.U // Enable led by setting x1 to 1
-}
+} /*
 object StagesCombined extends App {
   // We do 100_000_000 clock cycles per second
   val program = Array(
@@ -282,4 +275,4 @@ object StagesCombined extends App {
   )
 
   emitVerilog(new BenteTop(program, program, 0), Array("--target-dir", "generated"))
-}
+}*/

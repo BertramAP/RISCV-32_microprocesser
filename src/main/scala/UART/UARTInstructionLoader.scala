@@ -30,48 +30,48 @@ class UARTInstructionLoader() extends Module {
       when(!io.uartRx) {
         state := sStart
         counter := 0.U
-      }
+      } 
     }
-   is(sStart) {
-    done := false.B
-    when(counter === (countMID-1).U) {
-      when(!io.uartRx) {
-        state := sData
-        counter := 0.U
-      } .otherwise { // False alarm
-        counter := 0.U
-        state := sIdle
-      }
-    } .otherwise {
-      counter := counter + 1.U
-    }
-   }
-   is(sData) {
-    done := false.B
-    when(counter === (countMAX-1).U) {
-      counter := 0.U // Reset counter
-      dataReg := Cat(io.uartRx, dataReg(7,1))
-      when(byteCounter === 7.U) {
-        state := sStop
-        byteCounter := 0.U
-        } .otherwise {
-        byteCounter := byteCounter + 1.U
+    is(sStart) {
+      done := false.B
+      when(counter === (countMID-1).U) {
+        when(!io.uartRx) {
+          state := sData
+          counter := 0.U
+        } .otherwise { // False alarm
+          counter := 0.U
+          state := sIdle
         }
-    } .otherwise {
-      counter := counter + 1.U
+      } .otherwise {
+        counter := counter + 1.U
+      }
     }
+    is(sData) {
+      done := false.B
+      when(counter === (countMAX-1).U) {
+        counter := 0.U // Reset counter
+        dataReg := Cat(io.uartRx, dataReg(7,1))
+        when(byteCounter === 7.U) {
+          state := sStop
+          byteCounter := 0.U
+          } .otherwise {
+          byteCounter := byteCounter + 1.U
+          }
+      } .otherwise {
+        counter := counter + 1.U
+      }
     }
     is(sStop) {
-    when(counter === (countMAX-1).U) {
-      when(io.uartRx) {
-        state := sDone
-      } .otherwise { // Framing error, go back to idle
-        state := sIdle
+      when(counter === (countMAX-1).U) {
+        when(io.uartRx) {
+          state := sDone
+        } .otherwise { // No stop bit detected, continue to idle
+          state := sIdle
+        }
+        counter := 0.U
+      } .otherwise {
+        counter := counter + 1.U
       }
-      counter := 0.U
-    } .otherwise {
-      counter := counter + 1.U
-    }
    }
    is(sDone) {
     done := true.B
