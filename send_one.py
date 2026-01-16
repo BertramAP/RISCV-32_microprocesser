@@ -1,7 +1,7 @@
 import serial, time
 
-#PORT = "COM6"
-PORT = "/dev/ttyUSB1"
+PORT = "COM6"
+#PORT = "/dev/ttyUSB1"
 BAUD = 115200
 
 IMEM = [0x00100093, 0x00000073]  # addi x1,1 ; ecall
