@@ -78,12 +78,21 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
 
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
+  val ifIdValid = RegInit(false.B) // Valid bit for synchronous memory bypass
 
   io.if_pc := fetchStage.io.out.pc
   io.if_instr := fetchStage.io.out.instr
 
   val decodeStage = Module(new DecodeStage())
-  decodeStage.io.in := ifIdReg
+  // Bypass ifIdReg for instruction due to 1-cycle latency
+  decodeStage.io.in.instr := Mux(ifIdValid, fetchStage.io.imemInstr, 0.U)
+  decodeStage.io.in.pc := ifIdReg.pc
+  // DecodeStage input now handled field-by-field, remove full bundle assignment or ensure it works? 
+  // partial assignment to io.in works in chisel if fields are covered. 
+  // But io.in := ifIdReg assigns ALL fields. 
+  // Chisel "last assignment wins". So if I do io.in := ifIdReg then override io.in.instr, it should work.
+  // But explicit field assignment is clearer.
+  // decodeStage.io.in := ifIdReg // REMOVED
   
   val registerFile = Module(new RegisterFile())
   registerFile.io.readRegister1 := decodeStage.io.out.src1
@@ -119,6 +128,8 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   
   val writeBackStage = Module(new WritebackStage())
   writeBackStage.io.in := memWriteBackReg
+  // Bypass memWriteBackReg for memData due to 1-cycle latency
+  writeBackStage.io.in.memData := memStage.io.out.memData
 
   registerFile.io.writeRegister := writeBackStage.io.rfWriteRd
   registerFile.io.writeData := writeBackStage.io.rfWriteData
@@ -145,11 +156,14 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   // IF/ID Update Logic
   when (branchTaken) {
     ifIdReg := 0.U.asTypeOf(new FetchDecodeIO) // Flush
+    ifIdValid := false.B
   } .elsewhen (!globalStall) {
     ifIdReg := fetchStage.io.out
+    ifIdValid := true.B
   } .otherwise {
     // Stall: keep current value
     ifIdReg := ifIdReg
+    ifIdValid := ifIdValid
   }
 
   // ID/EX Update Logic & Forwarding
