@@ -74,12 +74,17 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   val coreDmemWeReg   = RegInit(false.B)
   val coreDmemAddrReg = RegInit(0.U(32.W))
   val coreDmemDataReg = RegInit(0.U(32.W))
-
+  // Default: no writes
+  coreImemWeReg := false.B
+  coreDmemWeReg := false.B
   switch(state) {
     is(sIdle) {
+      byteIndex := 0.U
+      lenCount := 0.U
+      byteCounter := 0.U
+
       when(uart.io.loadDone) {
         memUsed := uart.io.transferData(0)
-        byteIndex := 0.U
         state := sLen
       }
     }
