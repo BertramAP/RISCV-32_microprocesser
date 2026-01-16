@@ -78,6 +78,7 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   // Default: no writes
   coreImemWeReg := false.B
   coreDmemWeReg := false.B
+
   switch(state) {
     is(sIdle) {
       byteIndex := 0.U
@@ -86,7 +87,6 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
 
       when(uart.io.loadDone) {
         memUsed := uart.io.transferData(0)
-        byteIndex := 0.U
         state := sLen
       }
     }
