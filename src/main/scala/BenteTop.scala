@@ -143,16 +143,18 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val rs2 = decodeStage.io.out.src2
   val usesSrc1 = decodeStage.io.out.usesSrc1
   val usesSrc2 = decodeStage.io.out.usesSrc2
+  
+  val branchTaken = executeStage.io.BranchOut.branchTaken
+  val branchFlush = RegNext(branchTaken, false.B)
 
   val stallIDEx = (idExMemRead && (idExRd =/= 0.U) && ((idExRd === rs1 && usesSrc1) || (idExRd === rs2 && usesSrc2)))
   val stallExMem = (exMemRead   && (exMemRd =/= 0.U) && ((exMemRd === rs1 && usesSrc1) || (exMemRd === rs2 && usesSrc2)))
   shouldStall := stallIDEx || stallExMem
-  globalStall := shouldStall || !io.run
+  // If branch is taken, we flush pipeline, so we shouldn't stall for the flushed instruction
+  globalStall := (shouldStall && !branchTaken) || !io.run
 
 
-  val branchTaken = executeStage.io.BranchOut.branchTaken
 
-  val branchFlush = RegNext(branchTaken, false.B)
 
   // IF/ID Update Logic
   when (branchTaken || branchFlush) {
