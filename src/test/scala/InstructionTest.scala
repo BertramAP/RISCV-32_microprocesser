@@ -11,7 +11,7 @@ import java.nio.file.{Files, Paths}
 class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "Bente"
-  val testDirs = Seq("build/ripes", "build/riscv-tests", "build/simple")
+  val testDirs = Seq("build/ripes", "build/riscv-tests", "build/simple", "build/CAE-tests/task1", "build/CAE-tests/task2", "build/CAE-tests/task3", "build/CAE-tests/task4")
 
   testDirs.foreach { testDir =>
     val instructionTests = ElfLoader.getAsmFiles(testDir, ".out")
@@ -70,9 +70,15 @@ class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
 
           assert(c.io.done.peek().litToBoolean, s"Simulation of $testName from $testDir timed out")
 
-          if (testDir.contains("simple")) {
-            // For simple tests, compare against .res file in tests/simple
-            val resPath = Paths.get("tests", "simple", s"$testName.res").toString
+          if (testDir.contains("simple") || testDir.contains("CAE-tests")) {
+            // For simple and CAE tests, compare against .res file
+            var resPath = ""
+            if (testDir.contains("simple")) {
+              resPath = Paths.get("tests", "simple", s"$testName.res").toString
+            } else {
+              val taskName = Paths.get(testDir).getFileName.toString
+              resPath = Paths.get("tests", "CAE-tests", taskName, s"$testName.res").toString
+            }
             if (Files.exists(Paths.get(resPath))) {
               val expectedRegs = ElfLoader.readRes(resPath)
               for (i <- 0 until 32) {

@@ -1,27 +1,36 @@
-OUTDIR=../build
-CC=riscv64-unknown-elf
 
-all: riscv-tests simple ripes
+# Toolchain
+CC = riscv64-unknown-elf-gcc
+OBJCOPY = riscv64-unknown-elf-objcopy
+OBJDUMP = riscv64-unknown-elf-objdump
 
-riscv-tests:
-	@mkdir -p $(OUTDIR)/riscv-tests
-	@echo "Compiling riscv-tests..."
-	$(MAKE) OUTDIR=../$(OUTDIR)/riscv-tests CC=$(CC) -C riscv-tests
-	@echo "Done."
+# Flags
+CFLAGS = -march=rv32i -mabi=ilp32 -nostdlib -Wl,-T,../simple/linker.ld
+OUTDIR = ../../build/CAE-tests
 
-simple:
-	@mkdir -p $(OUTDIR)/simple
-	@echo "Compiling simple tests..."
-	$(MAKE) OUTDIR=../$(OUTDIR)/simple CC=$(CC) -C simple
-	@echo "Done."
+# Finding sources
+TASKS = task1 task2 task3 task4
+SOURCES = $(foreach task,$(TASKS),$(wildcard $(task)/*.s))
+# Convert source paths to output paths (e.g., task1/add.s -> ../../build/CAE-tests/task1/add.out)
+OBJECTS = $(patsubst %.s,$(OUTDIR)/%.out,$(SOURCES))
+BINARIES = $(patsubst %.s,$(OUTDIR)/%.bin,$(SOURCES))
 
-ripes:
-	@mkdir -p $(OUTDIR)/ripes
-	@echo "Compiling ripes tests..."
-	$(MAKE) OUTDIR=../$(OUTDIR)/ripes CC=$(CC) -C ripes
-	@echo "Done."
+.PHONY: all clean directories
 
-dump: ${AOBJ} ${COBJ}
-	$(CC)-objdump -d $(AOBJ) $(COBJ)
+all: directories $(BINARIES)
 
-.PHONY: riscv-tests simple ripes
+directories:
+	@mkdir -p $(foreach task,$(TASKS),$(OUTDIR)/$(task))
+
+# Rule to compile .s to .out (ELF)
+$(OUTDIR)/%.out: %.s
+	$(CC) $(CFLAGS) -o $@ $<
+
+# Rule to convert .out to .bin (Binary)
+$(OUTDIR)/%.bin: $(OUTDIR)/%.out
+	$(OBJCOPY) -O binary $< $@
+
+clean:
+	rm -rf $(OUTDIR)
+
+.SECONDARY:
