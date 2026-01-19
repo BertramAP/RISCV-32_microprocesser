@@ -15,7 +15,7 @@ $(OUTDIR)/%.out: %.c
 	$(CC)-gcc -march=rv32i -mabi=ilp32 -ffreestanding -nostartfiles -nostdlib -nodefaultlibs -Wl,-T,linker.ld -o $@ $<  
 
 $(OUTDIR)/%.out: %.s
-	$(CC)-as -march=rv32i -mabi=ilp32 -o $@ $<  
+	$(CC)-gcc -march=rv32i -mabi=ilp32 -nostdlib -Wl,-T,linker.ld -o $@ $<  
 
 $(OUTDIR)/%.bin: $(OUTDIR)/%.out
 	$(CC)-objcopy -O binary $< $@

@@ -55,8 +55,7 @@ bgeu_done:
 	jalr x0, x6, 0
 	addi x5, x5, 0x7FF
 mem_section:
-	lui x24, 0x0
-	addi x24, x24, 0x400
+	la x24, data
 	lb x7, 0(x24)
 	lbu x8, 0(x24)
 	lh x9, 2(x24)
@@ -95,13 +94,14 @@ mem_section:
 	addi x17, x0, 10
 	ecall
 
-	.org 0x400
+
+	.section .data
 data:
 	.byte 0x80
 	.byte 0x7F
 	.half 0x8001
 	.half 0x7FFF
-	.align 2
+	.balign 4
 	.word 0xDEADBEEF
 	.word 0x01020304
 	.word 0x00000000
