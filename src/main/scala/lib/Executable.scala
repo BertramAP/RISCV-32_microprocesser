@@ -1,75 +1,52 @@
 package lib
 
-import lib.Executable.Section
 import net.fornwall.jelf.ElfFile
-
 import java.io.File
 
-class Executable(
-    name: String, // name of the executable
-    elf: ElfFile // the ELF file
-) {
+class Executable(val name: String, val elf: ElfFile) {
+  
+  // Gets a specific section by name
+  def getSection(name: String): Option[Executable.Section] = {
+    val section = elf.firstSectionByName(name)
+    if (section == null) None
+    else Some(Executable.Section(section.header.sh_addr & 0xffffffffL, section.getData))
+  }
 
-  /**
-    * Returns the section with the given name, e.g. ".text", ".data", ".rodata", etc.
-    *
-    * @param name name of the section
-    * @return the section
-    */
-  def getSegment(name: String): Section =
-    Executable.getSection(elf, name) match {
-      case Some(s) => s
-      case None        => throw new Executable.SegmentDoesNotExist(name)
+  // Gets all sections that should be loaded into memory (Progbits)
+  def getAllLoadableSections(): List[Executable.Section] = {
+    val sections = scala.collection.mutable.ListBuffer[Executable.Section]()
+    for (i <- 0 until elf.e_shnum) {
+      val sh = elf.getSection(i)
+      // 1 = SHT_PROGBITS (data/code), 8 = SHT_NOBITS (bss)
+      if (sh.header.sh_type == 1 || sh.header.sh_type == 8) {
+        sections += Executable.Section(sh.header.sh_addr & 0xffffffffL, sh.getData)
+      }
     }
+    sections.toList
+  }
 
-  /**
-    * Returns the entry address of the executable.
-    *
-    * @return the entry address
-    */
   def getEntryPoint: Long = elf.e_entry & 0xffffffffL
 }
 
 object Executable {
-
-  case class Section(
-      start: Long, // start address of the section
-      data: Array[Byte] // data of the section
-  ) {
-    val end: BigInt = start + data.length
-
-    def getBytes: Seq[Long] = data.map(_.toLong & 0xff)
-
-    def getWords: Seq[Long] =
-      data
-        .grouped(4)
-        .map {
-          _.map(_.toLong & 0xff).zipWithIndex
-            .map { case (b, i) => b << (8 * i) }
-            .reduce(_ | _)
+  case class Section(start: Long, data: Array[Byte]) {
+    val end: Long = start + data.length
+    def getWords: Seq[Long] = {
+      if (data == null) return Seq.fill(0)(0L)
+      data.grouped(4).map { group =>
+        var word = 0L
+        for (i <- group.indices) {
+          word |= (group(i).toLong & 0xff) << (8 * i)
         }
-        .toSeq
+        word
+      }.toSeq
+    }
   }
 
-  class NonRV32Exception extends Exception("Not a RV32I executable")
-
-  class SegmentDoesNotExist(seg: String)
-      extends Exception(s"Segment '$seg' does not exist")
-
-  private def from(elf: ElfFile, name: String): Executable = {
-
-    if (!elf.is32Bits() || elf.e_machine != 0xf3) throw new NonRV32Exception
-
-    new Executable(name, elf)
-  }
-
-  def from(file: File): Executable = from(ElfFile.from(file), file.getName)
-
-  def from(path: String): Executable = from(new File(path))
-
-  private def getSection(elf: ElfFile, name: String): Option[Section] = {
-    val section = elf.firstSectionByName(name)
-    if (section == null) None
-    else Some(Section(section.header.sh_addr & 0xffffffffL, section.getData))
+  def from(file: File): Executable = {
+    val elf = ElfFile.from(file)
+    // 0xf3 is EM_RISCV
+    if (!elf.is32Bits() || elf.e_machine != 0xf3) throw new Exception("Not a RV32I executable")
+    new Executable(file.getName, elf)
   }
 }

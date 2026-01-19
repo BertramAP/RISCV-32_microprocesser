@@ -60,7 +60,7 @@ object ElfLoader {
     }
   }
 
-  def load(fileName: String): (Array[Int], Array[Int], Int) = {
+ def load(fileName: String): (Array[Int], Array[Int], Int) = {
     if (fileName.endsWith(".bin")) {
       val bins = readBin(fileName)
       (bins, bins, 0)
@@ -68,84 +68,33 @@ object ElfLoader {
       val hexs = readHex(fileName)
       (hexs, hexs, 0x200)
     } else {
-      // ELF loading logic
-      val elf = ElfFile.from(new File(fileName))
-      if (!elf.is32Bits || elf.e_machine != 0xf3) throw new Exception("Not a RV32I executable")
-  
-      val textSection = elf.firstSectionByName(".text")
-      val dataSection = elf.firstSectionByName(".data")
-  
-      val text = if (textSection != null) byteToWord(textSection.getData) else Array[Int]()
-      val data = if (dataSection != null) byteToWord(dataSection.getData) else Array[Int]()
-  
-      val textAddr = if (textSection != null) textSection.header.sh_addr else Long.MaxValue
-      val dataAddr = if (dataSection != null) dataSection.header.sh_addr else Long.MaxValue
+      val exe = lib.Executable.from(new File(fileName))
+      val sections = exe.getAllLoadableSections()
       
-      // Determine base address (minimum of existing sections)
-      val minAddr = math.min(textAddr, dataAddr)
-      
-      // Safety check if no sections found
-      if (minAddr == Long.MaxValue) {
-        throw new Exception(s"No .text or .data sections found in $fileName")
-      }
-  
-      // Calculate offsets
-      val isStringTest = fileName.contains("string") && textAddr == 0 && dataAddr == 0
-  
-      // Calculate offsets
-      val textOffset = if (textSection != null) ((textAddr - minAddr) / 4).toInt else 0
-      var dataOffset = if (dataSection != null) ((dataAddr - minAddr) / 4).toInt else 0
+      if (sections.isEmpty) throw new Exception(s"No loadable sections in $fileName")
 
-      // Size of memory
-      val textEnd = textOffset + text.length
-      val dataEnd = dataOffset + data.length
-      val maxIndex = math.max(textEnd, dataEnd)
-      
-      val imem = new Array[Int](maxIndex)
-      val dmem = new Array[Int](maxIndex)
-      
-      // imem: Prioritize Text (Code)
-      if (dataSection != null) {
-        for (i <- data.indices) imem(dataOffset + i) = data(i)
-      }
-      if (textSection != null) {
-        for (i <- text.indices) imem(textOffset + i) = text(i)
-      }
+      // Find the absolute bounds of the program in memory
+      val minAddr = sections.map(_.start).min
+      val maxAddr = sections.map(_.end).max
+      val sizeInWords = (((maxAddr - minAddr) + 3) / 4).toInt
 
-      // dmem: Prioritize Data
-      if (textSection != null) {
-        for (i <- text.indices) dmem(textOffset + i) = text(i)
-      }
-      if (dataSection != null) {
-        for (i <- data.indices) dmem(dataOffset + i) = data(i)
-      }
-      /*
-      if (isStringTest && imem.length > 1) {
-          // Patch 'addi a0, a0, 0' to 'addi a0, a0, 240' (0xF0)
-          imem(1) = 0x0F050513 // 0x0F050513 is addi a0, a0, 240
-          println("ElfLoader: Patching 'string' test - Instruction 1 to add 240")
-      }
-      // Patch rv32i_all ADDI instruction due to assembler issue (resolved %lo to 0)
-      if (fileName.contains("rv32i_all")) {
-           // Fix instruction at 0x94 (index 37 from start?)
-           // imem index is absolute from 0. 0x94/4 = 37.
-        if (imem.length > 37 && imem(37) == 0x00030313) {
-              imem(37) = 0x0A030313 // Set immediate to 0xA0 (address of mem_section)
-              println("ElfLoader: Patching 'rv32i_all' test - Instruction 37 to add 160")
-        }    
-           // Fix data section (dmem) alignment/corruption
-           // Expected data at 0x400 (word index 0x100 = 256)
-        if (dmem.length > 259) {
-              dmem(256) = 0x80017F80 // 0x400: .byte 0x80, 0x7F, .half 0x8001
-              dmem(257) = 0x00007FFF // 0x404: .half 0x7FFF, .align 2 (padding)
-              dmem(258) = 0xDEADBEEF // 0x408: .word 0xDEADBEEF
-              dmem(259) = 0x01020304 // 0x40C: .word 0x01020304
-              println("ElfLoader: Patching 'rv32i_all' test - Data section")
+      val memory = new Array[Int](sizeInWords)
+
+      for (s <- sections) {
+        val wordOffset = ((s.start - minAddr) / 4).toInt
+        val words = s.getWords
+        for (i <- words.indices) {
+          if (wordOffset + i < memory.length) {
+            memory(wordOffset + i) = words(i).toInt
+          }
         }
       }
-      */
-      (imem, dmem, elf.e_entry.toInt)
+
+      // Entry point must be relative to our memory array base
+      val relativeEntry = (exe.getEntryPoint - minAddr).toInt
+      
+      // In RV32I, imem and dmem usually share the same address space
+      (memory, memory, relativeEntry & ~3)
     }
   }
 }
-
