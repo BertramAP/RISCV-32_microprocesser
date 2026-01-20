@@ -15,54 +15,69 @@ class MemStage(data: Array[Int], memSize: Int = 128) extends Module {
   io.out.wbRegWrite := io.in.regWrite
   io.out.wbMemToReg := io.in.memToReg
   io.out.done       := io.in.done
-  io.out.funct3     := io.in.funct3 // Pass funct3 to WB
+  io.out.funct3     := io.in.funct3
 
-  // Use Vec of 4 bytes for masked writes
-  val memory = SyncReadMem(memSize, Vec(4, UInt(8.W)))
+  // Split memory into 4 banks each bank is 1 byte wide
+  val mem0 = SyncReadMem(memSize, UInt(8.W))
+  val mem1 = SyncReadMem(memSize, UInt(8.W))
+  val mem2 = SyncReadMem(memSize, UInt(8.W))
+  val mem3 = SyncReadMem(memSize, UInt(8.W))
+  val banks = Seq(mem0, mem1, mem2, mem3)
   
+  // Address Decoding
+  val addr = io.in.aluOut
+  val offset = addr(1, 0)
+  val wordIdx = addr(log2Ceil(memSize * 4) - 1, 2) // Word index
+
+  // Calculate address for each bank. If bank index < offset, it belongs to the next word.
+  val rData = Wire(Vec(4, UInt(8.W)))
+  for (i <- 0 until 4) {
+    val bankAddr = Mux(i.U < offset, wordIdx + 1.U, wordIdx)
+    rData(i) := banks(i).read(bankAddr)
+  }
+
+  // Delay offset to match SyncReadMem latency (1 cycle) for data alignment
+  val offsetReg = RegNext(offset)
+
+  val b0 = rData(offsetReg)
+  val b1 = rData((offsetReg + 1.U)(1,0))
+  val b2 = rData((offsetReg + 2.U)(1,0))
+  val b3 = rData((offsetReg + 3.U)(1,0))
+  
+  io.out.memData := Cat(b3, b2, b1, b0)
+
+  // dmemWe writes aligned 32-bit words
   when(io.dmemWe) {
-    // Convert 32-bit write data to Vec of bytes
-    val dmemByte0 = io.dmemWdata(7, 0)
-    val dmemByte1 = io.dmemWdata(15, 8)
-    val dmemByte2 = io.dmemWdata(23, 16)
-    val dmemByte3 = io.dmemWdata(31, 24)
-    memory.write(io.dmemWaddr, VecInit(dmemByte0, dmemByte1, dmemByte2, dmemByte3), VecInit(Seq.fill(4)(true.B)))
-  }.elsewhen(io.in.memWrite) {
-    // Handled below in store logic
+    mem0.write(io.dmemWaddr, io.dmemWdata(7, 0))
+    mem1.write(io.dmemWaddr, io.dmemWdata(15, 8))
+    mem2.write(io.dmemWaddr, io.dmemWdata(23, 16))
+    mem3.write(io.dmemWaddr, io.dmemWdata(31, 24))
+  } .elsewhen(io.in.memWrite) {
+    
+    val data = io.in.storeData
+  
+    val wMask = WireDefault(0.U(4.W))
+    switch(io.in.funct3) {
+      is(0.U) { wMask := 1.U }  // SB (Byte 0)
+      is(1.U) { wMask := 3.U }  // SH (Bytes 0, 1)
+      is(2.U) { wMask := 15.U } // SW (Bytes 0, 1, 2, 3)
+      is(3.U) { wMask := 15.U }
+    }
+
+    val wBytes = VecInit(data(7,0), data(15,8), data(23,16), data(31,24))
+
+    for(i <- 0 until 4) {
+      // Map global byte index to data index: j = (BankI - offset) % 4
+      val j = (i.U - offset)(1, 0)
+      
+      // If this data byte is enabled
+      when(wMask(j)) {
+        val bankAddr = Mux(i.U < offset, wordIdx + 1.U, wordIdx)
+        banks(i).write(bankAddr, wBytes(j))
+      }
+    }
   }
 
-  // Address decoding
-  val wordIndex = io.in.aluOut >> 2
-  val effectiveAddr = wordIndex(log2Ceil(memSize)-1, 0)
-  
-  // Data Read Logic (Synchronous)
-  val readVec = memory.read(effectiveAddr)
-  // Combine bytes to 32-bit word, will be formatted in WB stage
-  io.out.memData := Cat(readVec(3), readVec(2), readVec(1), readVec(0)) 
-  
-  // Store Logic
-  when(io.in.memWrite && !io.dmemWe) {
-    val storeData = io.in.storeData
-    val writeMask = WireDefault(0.U(32.W))
-    val offset = io.in.aluOut(1, 0) // Should be 0 for aligned accesses mostly, but we handle byte/half within word
-    
-    // Calculate 32-bit mask shifted by offset
-    switch(io.in.funct3) {
-      is(0.U) { writeMask := "h000000FF".U(32.W) << (offset * 8.U) }       // SB
-      is(1.U) { writeMask := "h0000FFFF".U(32.W) << (offset * 8.U) }     // SH
-      is(2.U) { writeMask := "hFFFFFFFF".U(32.W) }                   // SW (Assume aligned)
-      is(3.U) { writeMask := "hFFFFFFFF".U(32.W) } 
-    }
-    
-    val shiftedData = (storeData.asUInt << (offset * 8.U)).asUInt
-    
-    // Split into bytes for Vec write
-    val wDataVec = VecInit(shiftedData(7,0), shiftedData(15,8), shiftedData(23,16), shiftedData(31,24))
-    val wMaskVec = VecInit(writeMask(0), writeMask(8), writeMask(16), writeMask(24))
-    
-    memory.write(effectiveAddr, wDataVec, wMaskVec)
-  }
-  
   io.out.aluOut  := io.in.aluOut
   io.out.wbRd       := io.in.rd
   io.out.done       := io.in.done 
