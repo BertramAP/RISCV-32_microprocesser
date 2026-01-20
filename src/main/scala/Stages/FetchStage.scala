@@ -10,7 +10,6 @@ class FetchStage(PcStart: Int, memSizeWords: Int = 128) extends Module {
       val imemAddr = Output(UInt(log2Ceil(memSizeWords).W))
       val imemInstr = Input(UInt(32.W))
       val out = Output(new FetchDecodeIO)
-
   })
 
 
@@ -23,4 +22,5 @@ class FetchStage(PcStart: Int, memSizeWords: Int = 128) extends Module {
   val wordAddr = Pc(31, 2)(log2Ceil(memSizeWords) - 1, 0)
   io.imemAddr := wordAddr
   io.out.instr := io.imemInstr
+
 }

@@ -14,14 +14,6 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   })
 
 
-  val core = Module(new BenteTop(
-    Array.fill(memSizeWords)(0),
-    Array.fill(memSizeWords)(0),
-    PcStart,
-    memSizeWords
-  ))
-
-
   // UART byte receiver
   val uart = Module(new UARTInstructionLoader())
   uart.io.uartRx := io.rx
@@ -40,6 +32,28 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
 
   val imemLoaded = RegInit(false.B)
   val dmemLoaded = RegInit(false.B)
+  
+  // button rising edge
+  val buySync0 = RegNext(io.buy)
+  val buySync1 = RegNext(buySync0)
+  val buyPrev  = RegNext(buySync1)
+  val buyRise  = buySync1 && !buyPrev
+
+  // any UART activity => core is not running
+  val loadingActive = state =/= sIdle
+
+  val combinedReset = loadingActive || reset.asBool || buyRise
+
+
+  val core = withReset(combinedReset) {
+    Module(new BenteTop(
+      Array.fill(memSizeWords)(0),
+      Array.fill(memSizeWords)(0),
+      PcStart,
+      memSizeWords
+    ))
+  }
+
 
   // default: no writes
   core.io.imemWe := false.B
@@ -50,14 +64,6 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   core.io.dmemWaddr := 0.U
   core.io.dmemWdata := 0.U
 
-  // any UART activity => core is not running
-  val loadingActive = state =/= sIdle
-
-  // button rising edge
-  val buySync0 = RegNext(io.buy)
-  val buySync1 = RegNext(buySync0)
-  val buyPrev  = RegNext(buySync1)
-  val buyRise  = buySync1 && !buyPrev
 
   val runReg = RegInit(false.B)
   val loadedAll = imemLoaded && dmemLoaded
@@ -141,28 +147,32 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   val doneLatched = RegInit(false.B)
   val txCaptured = RegInit(false.B)
 
-  val txData = RegInit(0.U(32.W))
+  val txData = RegInit(0.U(64.W))
+  val cycleCounter = RegInit(0.U(32.W))
 
   val transmiter = Module(new UART.UARTTransmiter())
   io.tx := transmiter.io.uartTx
   transmiter.io.dataIn := txData(7, 0) // example: send reg x10 (a0) LSB
   transmiter.io.send := false.B
 
-
   val txIdle :: txSend :: txWaitBusy :: txNext:: txDone :: Nil = Enum(5)
   val txState = RegInit(txIdle)
-  val byteCount = RegInit(0.U(2.W))
+  val byteCount = RegInit(0.U(3.W))
+
   when(loadingActive || buyRise) {
     doneLatched := false.B
     txCaptured := false.B
     txData := 0.U
     txState := txIdle
+    cycleCounter := 0.U
   }.elsewhen(core.io.done && !txCaptured) {
     doneLatched := true.B
     txCaptured := true.B
-    txData := core.io.debug_regFile(10) // example: capture reg x10 (a0) LSB
+    txData := Cat(cycleCounter, core.io.debug_regFile(10)) // example: capture reg x10 (a0) LSB
     txState := txSend
     byteCount := 0.U
+  } .elsewhen(core.io.run && !loadingActive) {
+    cycleCounter := cycleCounter + 1.U
   }
   switch(txState) {
     is(txIdle) {
@@ -180,7 +190,7 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
     is(txNext) {
       txData := txData >> 8
       byteCount := byteCount + 1.U
-      when(byteCount === 3.U) {
+      when(byteCount === 7.U) {
         txState := txDone
       }.otherwise {
         txState := txSend

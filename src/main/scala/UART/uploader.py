@@ -45,7 +45,7 @@ def sendPacket(ser, packet_type, data):
     ser.write(data)
     time.sleep(0.01)  # Small delay to ensure data is sent properly
 
-def listenToUART(ser):
+def listenToUART(ser): # For continuous listening (debugging)
     buffer = bytearray()
     try:
         output = bytearray()
@@ -68,16 +68,21 @@ def listenToUART_OneShot(ser): # For listening for a single event
     print("Waiting for FPGA button press...")
     
     # Block until we receive exactly 4 bytes (32 bits)
-    data = ser.read(4) 
+    data = ser.read(8)  # Read 8 bytes for cycles and x10 value
     
-    if len(data) == 4:
+    if len(data) == 8:
         # Unpack as Little Endian (<) Unsigned Int (I)
-        val = struct.unpack("<I", data)[0]
-        
+        result_val, cycles = struct.unpack("<II", data)
+        print("=" * 30)
+        print(f"Cycles taken:       {cycles}")
         print("-" * 30)
-        print(f"Register x10 Value: {val}")
-        print(f"Hexadecimal:        {hex(val)}")
+        time_ns = cycles * (1e9 / 100_000_000)  # Assuming a 100 MHz clock, may change depending on our how well we optimize our current processer implementation
+        print(f"Execution time:     {time_ns:.2f} ns")
+        print("=" * 30)
+        print(f"Register x10 Value: {result_val}")
         print("-" * 30)
+        print(f"Hexadecimal:        {hex(result_val)}")
+        print("=" * 30)
     else:
         print("Timeout or Error: Did not receive 4 full bytes.")
 
