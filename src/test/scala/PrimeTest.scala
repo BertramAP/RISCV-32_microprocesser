@@ -12,6 +12,9 @@ class PrimeTest extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "run prime.bin until completion" in {
     val binFile = "tests/Prime_benchmark/prime.bin"
+    if (!new java.io.File(binFile).exists) {
+        cancel(s"Binary file $binFile not found")
+    }
     val (imem, dmem, start) = ElfLoader.load(binFile)
 
     // Using 16KB memory size as used in InstructionTest (4096 words)
@@ -49,28 +52,14 @@ class PrimeTest extends AnyFlatSpec with ChiselScalatestTester {
       // Run Simulation
       c.io.run.poke(true.B)
       
-      // The benchmark takes a while, so we need a generous timeout. 
-      // The prime calculation loop runs for 25 primes.
-      // Based on typical instruction counts, 200,000 cycles might be enough given the simplicity.
-      // Or we can just let it run until done with a very high timeout.
       c.clock.setTimeout(50000000) 
       
       var cycles = 0
       while (!c.io.done.peek().litToBoolean) {
          c.clock.step(1)
          cycles += 1
-         
-         // Optional: Print cycle count periodically
-         if (cycles % 10000 == 0) {
-           println(s"Cycle: $cycles")
-         }
       }
       println(s"Prime Benchmark took $cycles cycles")
-
-      // Check registers? 
-      // The code returns 0 in main, which goes to x10 usually? 
-      // But main returns to entry which does ecall.
-      // We can inspect register file if we want to debug, but just finishing is a success.
     }
   }
 }

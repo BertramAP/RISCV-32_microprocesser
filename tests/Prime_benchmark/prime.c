@@ -82,7 +82,7 @@ volatile UART_t *get_uart(unsigned int addr)
 // Example
 // volatile UART_t *uart0 = get_uart(0x10000000);
 
-void uart_write_char(volatile UART_t *uart, unsigned char c)
+void uart_write_char(volatile UART_t *uart, unsigned char c) // uart commented out for our PrimeTests
 {
     // wait until TX is ready
     // wait until TX is ready
