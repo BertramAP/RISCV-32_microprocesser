@@ -6,11 +6,11 @@ class BranchPredictor extends Module {
   val io = IO(new Bundle {
     val isBranch = Input(Bool()) // Indicates if the current instruction is a branch
     val branchTaken = Input(Bool()) // Actual outcome of the branch from exe stage
-
+    
     val predictTaken = Output(Bool()) // Prediction output
   })
   val counter = RegInit(0.U(2.W))
-
+  
   switch(counter) {
     is(0.U) { // Strongly Not Taken
       when(io.isBranch && io.branchTaken) {  

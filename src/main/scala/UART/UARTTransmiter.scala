@@ -14,8 +14,8 @@
         val baudRate = 115200 // signal change per second
         val clockFreq = 100000000 // 100 MHz
         val countMAX = clockFreq / baudRate
-        val counter = RegInit(0.U(10.W))
-
+        val counter = RegInit(0.U(log2Ceil(countMAX + 1).W))
+        
         val bitCounter = RegInit(0.U(4.W))
         val dataReg = RegInit(0.U(8.W))
 
@@ -39,10 +39,8 @@
                 io.uartTx := false.B // Start bit is low
                 // Wait for one period
                 when(counter === (countMAX-1).U) {
-                    when(io.send) {
-                        state := sData
-                        counter := 0.U
-                    }
+                    state := sData
+                    counter := 0.U
                 } .otherwise {
                     counter := counter + 1.U
                 }

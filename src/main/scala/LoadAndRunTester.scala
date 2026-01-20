@@ -139,24 +139,57 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   }
 
   val doneLatched = RegInit(false.B)
-  val debugSent = RegInit(false.B)
-  val output = RegInit(0.U(8.W))
-  when(loadingActive || buyRise) {
-    doneLatched := false.B
-    debugSent := false.B
-    output := 0.U
-  }.elsewhen(core.io.done) {
-    doneLatched := true.B
-    output := core.io.debug_regFile(10)(7,0) // example: capture reg x10 (a0) LSB
-  }
+  val txCaptured = RegInit(false.B)
+
+  val txData = RegInit(0.U(32.W))
+
   val transmiter = Module(new UART.UARTTransmiter())
   io.tx := transmiter.io.uartTx
-  transmiter.io.dataIn := output // example: send reg x10 (a0) LSB
+  transmiter.io.dataIn := txData(7, 0) // example: send reg x10 (a0) LSB
   transmiter.io.send := false.B
 
-  when(doneLatched && !debugSent && !transmiter.io.busy) {
-    transmiter.io.send := true.B
-    debugSent := true.B
+
+  val txIdle :: txSend :: txWaitBusy :: txNext:: txDone :: Nil = Enum(5)
+  val txState = RegInit(txIdle)
+  val byteCount = RegInit(0.U(2.W))
+  when(loadingActive || buyRise) {
+    doneLatched := false.B
+    txCaptured := false.B
+    txData := 0.U
+    txState := txIdle
+  }.elsewhen(core.io.done && !txCaptured) {
+    doneLatched := true.B
+    txCaptured := true.B
+    txData := core.io.debug_regFile(10) // example: capture reg x10 (a0) LSB
+    txState := txSend
+    byteCount := 0.U
+  }
+  switch(txState) {
+    is(txIdle) {
+      // DO NOTHING
+    }
+    is(txSend) {
+      transmiter.io.send := true.B
+      txState := txWaitBusy
+    }
+    is(txWaitBusy) {
+      when(!transmiter.io.busy) { // Wait for transmission to start
+        txState := txNext
+      }
+    }
+    is(txNext) {
+      txData := txData >> 8
+      byteCount := byteCount + 1.U
+      when(byteCount === 3.U) {
+        txState := txDone
+      }.otherwise {
+        txState := txSend
+      }
+
+    }
+    is(txDone) {
+      txState := txIdle
+    }
   }
   
   // Connect core run signal
