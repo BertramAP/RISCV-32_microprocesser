@@ -17,6 +17,8 @@ class FetchBranchIO extends Bundle {
 class DecodeExecuteIO extends Bundle {
   val src1   = UInt(32.W)
   val src2   = UInt(32.W)
+  val rs1_addr = UInt(5.W)
+  val rs2_addr = UInt(5.W)
   val imm    = UInt(32.W)
   val dest   = UInt(5.W)
   val funct3 = UInt(3.W)
@@ -61,9 +63,14 @@ class DecodeOutputsIO extends Bundle {
   val memWrite = Bool()
   val memToReg = Bool()
   val done = Bool()
+  
+  // Hazard Detection Helpers
+  val usesSrc1 = Bool()
+  val usesSrc2 = Bool()
 }
 
 class ExecuteMemIO extends Bundle {
+    val pc          = UInt(32.W) // Debug msg
     val aluOut      = UInt(32.W)
     val addrWord    = UInt(32.W)    // Word index
     val storeData   = UInt(32.W)
@@ -82,7 +89,8 @@ class ExecuteMemIO extends Bundle {
 }
 
 class MemWbIO extends Bundle {
-    val memData    = UInt(64.W) // Widened for unaligned access support
+    val pc         = UInt(32.W) // Debug msg
+    val memData    = UInt(32.W) 
     val aluOut     = UInt(32.W)
     val wbRd       = UInt(5.W)
     val funct3     = UInt(3.W)

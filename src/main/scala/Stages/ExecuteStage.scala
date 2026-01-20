@@ -9,10 +9,54 @@ class ExecuteStage extends Module {
       // Outputs to the Memory stage
       val out = Output(new ExecuteMemIO)
       // Outputs to the Fetch stage for branch handling
-      val BranchOut = Output(new FetchBranchIO) 
+    val IO_forwarding = Input(new Bundle {
+        val mem_rd = UInt(5.W)
+        val mem_regWrite = Bool()
+        val mem_aluOut = UInt(32.W)
+        
+        val wb_rd = UInt(5.W)
+        val wb_regWrite = Bool()
+        val wb_writeData = UInt(32.W)
+    })
+    val BranchOut = Output(new FetchBranchIO)
     })
 
+    // Forwarding Logic
+    val src1_forwarded = Wire(UInt(32.W))
+    val src2_forwarded = Wire(UInt(32.W))
+
+    // Forwarding A (rs1)
+    val forwardA_MEM = io.IO_forwarding.mem_regWrite && io.IO_forwarding.mem_rd =/= 0.U && io.IO_forwarding.mem_rd === io.in.rs1_addr
+    val forwardA_WB  = io.IO_forwarding.wb_regWrite  && io.IO_forwarding.wb_rd  =/= 0.U && io.IO_forwarding.wb_rd  === io.in.rs1_addr
+
+    when (forwardA_MEM) {
+        src1_forwarded := io.IO_forwarding.mem_aluOut
+    } .elsewhen (forwardA_WB) {
+        src1_forwarded := io.IO_forwarding.wb_writeData
+    } .otherwise {
+        src1_forwarded := Mux(io.in.isPC, io.in.pc, io.in.src1) // Use values from buffer (or PC)
+    }
+
+    // Forwarding B (rs2)
+    val forwardB_MEM = io.IO_forwarding.mem_regWrite && io.IO_forwarding.mem_rd =/= 0.U && io.IO_forwarding.mem_rd === io.in.rs2_addr
+    val forwardB_WB  = io.IO_forwarding.wb_regWrite  && io.IO_forwarding.wb_rd  =/= 0.U && io.IO_forwarding.wb_rd  === io.in.rs2_addr
+
+    when (forwardB_MEM) {
+        src2_forwarded := io.IO_forwarding.mem_aluOut
+    } .elsewhen (forwardB_WB) {
+        src2_forwarded := io.IO_forwarding.wb_writeData
+    } .otherwise {
+        src2_forwarded := io.in.src2
+    }
+    
+    // ALU Inputs
+    val src1 = src1_forwarded
+    val src2 = Mux(io.in.aluSrc, io.in.imm, src2_forwarded) // Imm overrides src2 (even if forwarded)
+
+
+
     // Forward control signals
+    io.out.pc := io.in.pc
     io.out.memRead := io.in.memRead
     io.out.memWrite := io.in.memWrite
     io.out.regWrite := io.in.regWrite
@@ -27,22 +71,22 @@ class ExecuteStage extends Module {
     when (io.in.isBranch) {
       switch(io.in.funct3) {
         is("b000".U) { // BEQ
-          branchCond := io.in.src1 === io.in.src2
+          branchCond := src1_forwarded === src2_forwarded
         }
         is("b001".U) { // BNE
-          branchCond := io.in.src1 =/= io.in.src2
+          branchCond := src1_forwarded =/= src2_forwarded
         }
         is("b100".U) { // BLT
-          branchCond := io.in.src1.asSInt < io.in.src2.asSInt
+          branchCond := src1_forwarded.asSInt < src2_forwarded.asSInt
         }
         is("b101".U) { // BGE
-          branchCond := io.in.src1.asSInt >= io.in.src2.asSInt
+          branchCond := src1_forwarded.asSInt >= src2_forwarded.asSInt
         }
         is("b110".U) { // BLTU
-          branchCond := io.in.src1 < io.in.src2
+          branchCond := src1_forwarded < src2_forwarded
         }
         is("b111".U) { // BGEU
-          branchCond := io.in.src1 >= io.in.src2
+          branchCond := src1_forwarded >= src2_forwarded
         }
       }
     }
@@ -51,8 +95,8 @@ class ExecuteStage extends Module {
     val aluZero = WireDefault(false.B)
 
     // ALU Logic
-    val src1 = io.in.src1
-    val src2 = Mux(io.in.aluSrc, io.in.imm, io.in.src2)
+    // src1 and src2 are already defined above with forwarding logic
+
     val aluOp = io.in.aluOp
     val shamt = src2(4, 0)
     
@@ -94,7 +138,7 @@ class ExecuteStage extends Module {
 
     // Jump targets
     val jaltarget = io.in.pc + io.in.imm
-    val jalrtarget = (io.in.src1 + io.in.imm) & (~1.U(32.W))
+    val jalrtarget = (src1_forwarded + io.in.imm) & (~1.U(32.W))
     io.BranchOut.branchTarget := 0.U
     when(io.in.isJumpr) {
       io.BranchOut.branchTarget := jalrtarget
@@ -112,7 +156,7 @@ class ExecuteStage extends Module {
     }
 
     io.out.addrWord := aluOut(31, 2) // Word address for memory
-    io.out.storeData := io.in.src2
+    io.out.storeData := src2_forwarded
     io.out.funct3 := io.in.funct3
     io.out.rd := io.in.dest(4, 0) // Truncate to 5 bits for register index
 }

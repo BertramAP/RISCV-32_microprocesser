@@ -19,9 +19,8 @@ class FetchStage(PcStart: Int, memSizeWords: Int = 128) extends Module {
   val nextPc = Mux(io.in.branchTaken, io.in.branchTarget, Pc + 1.U)
   Pc := Mux(io.in.done || io.in.stall, Pc, nextPc) // done on Ecall 
 
-  io.out.pc := Pc
+  io.out.pc := RegEnable(Pc, (PcStart.toLong & 0xFFFFFFFFL).U(32.W), !io.in.stall) // Delay PC to match Instr latency, stallable
   val wordAddr = Pc(31, 2)(log2Ceil(memSizeWords) - 1, 0)
   io.imemAddr := wordAddr
-  // Mask PC to avoid out of bounds
   io.out.instr := io.imemInstr
 }

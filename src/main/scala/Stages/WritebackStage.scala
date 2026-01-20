@@ -13,24 +13,24 @@ class WritebackStage extends Module {
     val done        = Output(Bool())
   })
 
-  // Data Alignment Logic (moved from MemStage)
-  val offset = io.in.aluOut(1, 0)
-  val alignedWord = io.in.memData >> (offset * 8.U)
-  val readData = alignedWord(31, 0)
-  
-  val memData = WireDefault(0.U(32.W))
-  
-  switch(io.in.funct3) {
-    is(0.U) { memData := readData(7, 0).asSInt.pad(32).asUInt }  // LB
-    is(1.U) { memData := readData(15, 0).asSInt.pad(32).asUInt } // LH
-    is(2.U) { memData := readData }                              // LW
-    is(4.U) { memData := readData(7, 0) }                        // LBU
-    is(5.U) { memData := readData(15, 0) }                       // LHU
-    is(3.U) { memData := readData }                              // Default to LW
-  }
+ // Data Alignment Logic
+val offset      = io.in.aluOut(1, 0)
+val readData    = io.in.memData
+val shiftedData = readData >> (offset * 8.U)
+
+val memData = WireDefault(0.U(32.W))
+
+switch(io.in.funct3) {
+  is("b000".U) { memData := Cat(Fill(24, shiftedData(7)), shiftedData(7, 0)) }   // LB (Explicit Sign Extended)
+  is("b001".U) { memData := Cat(Fill(16, shiftedData(15)), shiftedData(15, 0)) } // LH (Explicit Sign Extended)
+  is("b010".U) { memData := readData }                                   // LW
+  is("b100".U) { memData := shiftedData(7, 0) }                          // LBU (Zero Extended by default)
+  is("b101".U) { memData := shiftedData(15, 0) }                         // LHU (Zero Extended by default)
+}
 
   io.rfWriteData := Mux(io.in.wbMemToReg, memData, io.in.aluOut)
   io.rfWriteRd   := io.in.wbRd
   io.rfRegWrite  := io.in.wbRegWrite && (io.in.wbRd =/= 0.U)
   io.done        := io.in.done
+
 }

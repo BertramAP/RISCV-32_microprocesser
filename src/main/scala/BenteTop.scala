@@ -53,28 +53,27 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
     val run = Input(Bool())
     val led = Output(Bool())
   })
-  // Instruction memory
+
   val imem = SyncReadMem(memSizeWords, UInt(32.W))
   
   when(io.imemWe) {
-    imem(io.imemWaddr) := io.imemWdata
+    imem.write(io.imemWaddr, io.imemWdata)
+    when (io.run) {
+        printf(p"IMEM WRITE EXEC: Addr=0x${Hexadecimal(io.imemWaddr)} Data=0x${Hexadecimal(io.imemWdata)}\n")
+    }
   }
   // Fetch stage
   val fetchStage = Module(new FetchStage(PcStart, memSizeWords))
-  fetchStage.io.imemInstr := imem(fetchStage.io.imemAddr)
 
-
-  val doneWire = WireDefault(false.B)
   val shouldStall = Wire(Bool())
-  val globalStall = shouldStall || !io.run
-  fetchStage.io.in.done := doneWire
+  val globalStall = Wire(Bool()) // shouldStall || !io.run // Moved assignment down
+
+  // Use SyncReadMem read with enable to maintain pipeline timing and support stalling
+  fetchStage.io.imemInstr := imem.read(fetchStage.io.imemAddr, !globalStall)
+  
   fetchStage.io.in.stall := globalStall
   fetchStage.io.in.branchTaken  := false.B
   fetchStage.io.in.branchTarget := 0.U
-  io.done := doneWire
-
- 
-
 
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
@@ -84,15 +83,8 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   io.if_instr := fetchStage.io.out.instr
 
   val decodeStage = Module(new DecodeStage())
-  // Bypass ifIdReg for instruction due to 1-cycle latency
-  decodeStage.io.in.instr := Mux(ifIdValid, fetchStage.io.imemInstr, 0.U)
+  decodeStage.io.in.instr := Mux(ifIdValid, ifIdReg.instr, 0.U)
   decodeStage.io.in.pc := ifIdReg.pc
-  // DecodeStage input now handled field-by-field, remove full bundle assignment or ensure it works? 
-  // partial assignment to io.in works in chisel if fields are covered. 
-  // But io.in := ifIdReg assigns ALL fields. 
-  // Chisel "last assignment wins". So if I do io.in := ifIdReg then override io.in.instr, it should work.
-  // But explicit field assignment is clearer.
-  // decodeStage.io.in := ifIdReg // REMOVED
   
   val registerFile = Module(new RegisterFile())
   registerFile.io.readRegister1 := decodeStage.io.out.src1
@@ -102,7 +94,6 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
   
   val executeStage = Module(new ExecuteStage())
-  // fetchStage.io.in <> executeStage.io.BranchOut // Removed to prevent overwriting stall
   fetchStage.io.in.branchTaken := executeStage.io.BranchOut.branchTaken
   fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
   
@@ -128,33 +119,45 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   
   val writeBackStage = Module(new WritebackStage())
   writeBackStage.io.in := memWriteBackReg
-  // Bypass memWriteBackReg for memData due to 1-cycle latency
-  writeBackStage.io.in.memData := memStage.io.out.memData
+  writeBackStage.io.in.memData := memStage.io.out.memData // Bypass memWriteBackReg for memData due to 1-cycle SyncReadMem latency.
+
 
   registerFile.io.writeRegister := writeBackStage.io.rfWriteRd
   registerFile.io.writeData := writeBackStage.io.rfWriteData
   registerFile.io.regWrite := writeBackStage.io.rfRegWrite
   
-  doneWire := memWriteBackReg.done
-  io.done := doneWire
-  fetchStage.io.in.done := writeBackStage.io.done
   io.done := writeBackStage.io.done
+  fetchStage.io.in.done := writeBackStage.io.done
+
   
   // Hazard Detection (Load-Use -> Stall)
   // Check if instruction in EX (idExReg) is a Load and dest matches rs1 or rs2 of instruction in ID
   val idExMemRead = idExReg.memRead
   val idExRd = idExReg.dest
+  
+  // Also check if instruction in MEM (exMemReg) is a Load (Extended stall for SyncReadMem latency)
+  val exMemRead = exMemReg.memRead
+  val exMemRd   = exMemReg.rd
+
   val rs1 = decodeStage.io.out.src1
   val rs2 = decodeStage.io.out.src2
-
-  shouldStall := idExMemRead && (idExRd =/= 0.U) && (idExRd === rs1 || idExRd === rs2)
-  // fetchStage.io.in.stall := shouldStall // Overwritten by line 71 with globalStall
-
-
+  val usesSrc1 = decodeStage.io.out.usesSrc1
+  val usesSrc2 = decodeStage.io.out.usesSrc2
+  
   val branchTaken = executeStage.io.BranchOut.branchTaken
+  val branchFlush = RegNext(branchTaken, false.B)
+
+  val stallIDEx = (idExMemRead && (idExRd =/= 0.U) && ((idExRd === rs1 && usesSrc1) || (idExRd === rs2 && usesSrc2)))
+  val stallExMem = (exMemRead   && (exMemRd =/= 0.U) && ((exMemRd === rs1 && usesSrc1) || (exMemRd === rs2 && usesSrc2)))
+  shouldStall := stallIDEx || stallExMem
+  // If branch is taken, we flush pipeline, so we shouldn't stall for the flushed instruction
+  globalStall := (shouldStall && !branchTaken) || !io.run
+
+
+
 
   // IF/ID Update Logic
-  when (branchTaken) {
+  when (branchTaken || branchFlush) {
     ifIdReg := 0.U.asTypeOf(new FetchDecodeIO) // Flush
     ifIdValid := false.B
   } .elsewhen (!globalStall) {
@@ -168,38 +171,18 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
 
   // ID/EX Update Logic & Forwarding
   
-  // Forwarding Sources
-  // ForwardA for rs1 
-  val forwardA_EX = (idExReg.regWrite && idExReg.dest =/= 0.U && idExReg.dest === rs1)
-  val forwardA_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs1)
-  val forwardA_WB = (memWriteBackReg.wbRegWrite && memWriteBackReg.wbRd =/= 0.U && memWriteBackReg.wbRd === rs1)  
+  // Forwarding Logic now in ExecuteStage
+
+  executeStage.io.IO_forwarding.mem_rd := memStage.io.out.wbRd 
+  executeStage.io.IO_forwarding.mem_regWrite := memStage.io.out.wbRegWrite
+
+  executeStage.io.IO_forwarding.mem_aluOut := memStage.io.out.aluOut
   
-  // ForwardB for rs2
-  val forwardB_EX = (idExReg.regWrite && idExReg.dest =/= 0.U && idExReg.dest === rs2)
-  val forwardB_MEM = (exMemReg.regWrite && exMemReg.rd =/= 0.U && exMemReg.rd === rs2)
-  val forwardB_WB = (memWriteBackReg.wbRegWrite && memWriteBackReg.wbRd =/= 0.U && memWriteBackReg.wbRd === rs2)
+  executeStage.io.IO_forwarding.wb_rd := writeBackStage.io.rfWriteRd
+  executeStage.io.IO_forwarding.wb_regWrite := writeBackStage.io.rfRegWrite
+  executeStage.io.IO_forwarding.wb_writeData := writeBackStage.io.rfWriteData
 
-  val dataFromEX = executeStage.io.out.aluOut 
 
-  val dataFromMEM = Mux(memStage.io.out.wbMemToReg, memStage.io.out.memData, memStage.io.out.aluOut)
-
-  val dataFromWB = writeBackStage.io.rfWriteData
-
-  val src1Data = Mux(forwardA_EX, dataFromEX,
-      Mux(forwardA_MEM, dataFromMEM,
-        Mux(forwardA_WB, dataFromWB, 
-         Mux(decodeStage.io.out.isPC, decodeStage.io.out.pc, registerFile.io.readData1)
-        )
-      )
-  )
-
-  val src2Data = Mux(forwardB_EX, dataFromEX,
-      Mux(forwardB_MEM, dataFromMEM,
-        Mux(forwardB_WB, dataFromWB, 
-         registerFile.io.readData2
-        )
-      )
-  )
 
   when (branchTaken || shouldStall) {
      idExReg := 0.U.asTypeOf(new DecodeExecuteIO) // Flush
@@ -221,13 +204,14 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
      idExReg.memToReg := decodeStage.io.out.memToReg
      idExReg.done     := decodeStage.io.out.done
 
-     idExReg.src1 := src1Data
-     idExReg.src2 := src2Data
+     idExReg.src1 := registerFile.io.readData1
+     idExReg.src2 := registerFile.io.readData2
+     idExReg.rs1_addr := decodeStage.io.out.src1
+     idExReg.rs2_addr := decodeStage.io.out.src2
+
   }
-
+  io.debug_regFile := registerFile.io.debug_registers
   // Debug outputs
-
-
   io.ifid_instr := ifIdReg.instr
 
   io.id_readAddress1 := registerFile.io.readRegister1
@@ -235,7 +219,6 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   io.id_rd := idExReg.dest(4,0)
   io.id_imm := decodeStage.io.out.imm
   io.id_regWrite := decodeStage.io.out.regWrite
-  io.debug_regFile := registerFile.io.debug_registers
 
   io.ex_rd := executeStage.io.out.rd
   io.ex_regWrite := executeStage.io.out.regWrite
@@ -254,40 +237,6 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   io.ex_wbEnable := executeStage.io.out.regWrite
   io.mem_wbEnable := memStage.io.out.wbRegWrite
   io.wb_wbEnable := writeBackStage.io.rfRegWrite
-  
   io.led := registerFile.io.x1 === 1.U // Enable led by setting x1 to 1
-} /*
-object StagesCombined extends App {
-  // We do 100_000_000 clock cycles per second
-  val program = Array(
-    0x00000093, // addi x1 x0 0     | Init LED to off
-    0x00000113, // addi x2 x0 0     | Set counter to 0
-    0x007f31b7, // lui x3 2035      | Set counter target to 50M/6 = 8333333
-    0x81518193, // addi x3 x3 -2027 | Set counter target to 50M/6 = 8333333
-    0x00000013, // nop
-    0x00000013, // nop
 
-    // offloop:
-    0x00110113, // addi x2 x2 1     | Increment counter
-    0x00000013, // nop
-    0x00000013, // nop
-    0xfe311ae3, // bne x2 x3 -12    | Branch to offloop if we haven't reached target
-    0x00000013, // nop
-    0x00000013, // nop
-    0x00100093, // addi x1 x0 1     | Turn LED ON
-
-    // onloop:
-    0xfff10113, // addi x2 x2 -1    | Decrement counter
-    0x00000013, // nop
-    0x00000013, // nop
-    0xfe011ae3, // bne x2 x0 -12    | Branch to onloop if counter hasn't reached 0 yet
-    0x00000013, // nop
-    0x00000013, // nop
-    0x00000093, // addi x1 x0 0     | Turn LED off
-    0xfc0104e3, // beq x2 x0 -56    | Branch to offloop
-    0x00000013, // nop
-    0x00000013, // nop
-  )
-
-  emitVerilog(new BenteTop(program, program, 0), Array("--target-dir", "generated"))
-}*/
+} 

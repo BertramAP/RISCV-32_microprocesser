@@ -21,6 +21,12 @@ class DecodeStage extends Module {
   })
   val aluOp = WireDefault(0.U(4.W))
   val src1 = WireDefault(0.U(5.W))
+  // Debug Decode
+  // printf(p"DecodeIn: PC=0x${Hexadecimal(io.in.pc)}, Instr=0x${Hexadecimal(io.in.instr)}\n")
+  // printf(p"Decode: PC=0x${Hexadecimal(io.in.pc)}, Instr=0x${Hexadecimal(io.in.instr)}, Opcode=$opcode, Funct3=$funct3\n")
+  
+
+
   val src2 = WireDefault(0.U(5.W))
   val dest = WireDefault(io.in.instr(11, 7))
   val funct3 = WireDefault(0.U(3.W))
@@ -40,7 +46,9 @@ class DecodeStage extends Module {
   io.out.isJump := false.B
   io.out.isJumpr := false.B
   io.out.done := false.B
-
+  io.out.usesSrc1 := false.B
+  io.out.usesSrc2 := false.B
+  
   val imm = WireDefault(0.U(32.W))
 
   switch(opcode) {
@@ -55,12 +63,12 @@ class DecodeStage extends Module {
       src2 := 0.U
       funct3 := io.in.instr(14, 12)
       aluOp := ALUops.ALU_ADD // Load uses addition
+      io.out.usesSrc1 := true.B // Base address
     }
 
     is(19.U) { // I-Type
       io.out.regWrite := true.B
       io.out.aluSrc := true.B
-
       imm := signExtendIType(io.in.instr)
       funct3 := io.in.instr(14, 12)
       funct7 := io.in.instr(31, 25) // Use full funct7
@@ -76,6 +84,7 @@ class DecodeStage extends Module {
         is(6.U) { aluOp := ALUops.ALU_OR } // OR
         is(7.U) { aluOp := ALUops.ALU_AND } // ANDI
       }
+      io.out.usesSrc1 := true.B
     }
     is (23.U) { // auipc
       io.out.regWrite := true.B
@@ -98,6 +107,8 @@ class DecodeStage extends Module {
       funct3 := io.in.instr(14, 12)
       dest := imm
       aluOp := ALUops.ALU_ADD // Store uses addition
+      io.out.usesSrc1 := true.B
+      io.out.usesSrc2 := true.B
     } 
     is(51.U) { // R-type
       io.out.regWrite := true.B
@@ -117,6 +128,8 @@ class DecodeStage extends Module {
         is(6.U) { aluOp := ALUops.ALU_OR } // OR
         is(7.U) { aluOp := ALUops.ALU_AND } // AND
       }
+      io.out.usesSrc1 := true.B
+      io.out.usesSrc2 := true.B
     } 
     is(55.U) { // LUI
       io.out.regWrite := true.B
@@ -137,6 +150,8 @@ class DecodeStage extends Module {
       src1 := io.in.instr(19, 15)
       src2 := io.in.instr(24, 20)
       aluOp := ALUops.ALU_SUB // Branches use subtraction for comparison
+      io.out.usesSrc1 := true.B
+      io.out.usesSrc2 := true.B
     }
     is(111.U) { // JAL
       io.out.regWrite := true.B
@@ -162,6 +177,7 @@ class DecodeStage extends Module {
       src1 := io.in.instr(19, 15) // TODO: The pc needs src1 and imm to be updated
       src2 := 0.U //
       aluOp := ALUops.ALU_ADD // JALR uses addition to calculate target address
+      io.out.usesSrc1 := true.B
     }
     is(115.U) { // ECALL/EBREAK
       io.out.done := true.B

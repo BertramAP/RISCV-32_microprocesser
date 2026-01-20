@@ -12,3 +12,5 @@ libraryDependencies += "edu.berkeley.cs" %% "chiseltest" % "0.5.6"
 libraryDependencies += "edu.berkeley.cs" % "ip-contributions" % "0.5.1"
 
 libraryDependencies += "net.fornwall" % "jelf" % "0.9.0"
+
+Compile / mainClass := Some("stages.LoadAndRunTester")
