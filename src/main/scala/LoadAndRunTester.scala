@@ -139,20 +139,27 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   }
 
   val doneLatched = RegInit(false.B)
+  val debugSent = RegInit(false.B)
+  val output = RegInit(0.U(8.W))
   when(loadingActive || buyRise) {
     doneLatched := false.B
+    debugSent := false.B
+    output := 0.U
   }.elsewhen(core.io.done) {
     doneLatched := true.B
+    output := core.io.debug_regFile(10)(7,0) // example: capture reg x10 (a0) LSB
   }
   val transmiter = Module(new UART.UARTTransmiter())
   io.tx := transmiter.io.uartTx
-  when(doneLatched) {
-    transmiter.io.dataIn := core.io.debug_regFile(10)(7,0) // example: send reg x10 (a0) LSB
+  transmiter.io.dataIn := output // example: send reg x10 (a0) LSB
+  transmiter.io.send := false.B
+
+  when(doneLatched && !debugSent && !transmiter.io.busy) {
     transmiter.io.send := true.B
-  }.otherwise {
-    transmiter.io.dataIn := 0.U
-    transmiter.io.send := false.B
+    debugSent := true.B
   }
+  
+  // Connect core run signal
   core.io.run := runReg && loadedAll && !loadingActive && !doneLatched
   
   core.io.imemWe    := coreImemWeReg
