@@ -35,7 +35,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
     val wb_rd       = Output(UInt(5.W))
     val wb_wbEnable = Output(Bool())
     
-    val debug_regFile = Output(Vec(32, UInt(32.W)))
+    val debugRegVal = Output(UInt(32.W))
   
     // Board outputs
     val done = Output(Bool())
@@ -210,7 +210,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
      idExReg.rs2_addr := decodeStage.io.out.src2
 
   }
-  io.debug_regFile := registerFile.io.debug_registers
+  io.debugRegVal := registerFile.io.debugRegVal
   // Debug outputs
   io.ifid_instr := ifIdReg.instr
 

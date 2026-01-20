@@ -24,7 +24,7 @@
         //default values
         io.busy := true.B
         io.uartTx := true.B
-
+        
         switch(state) {
             is(sIdle) {
                 io.busy := false.B
