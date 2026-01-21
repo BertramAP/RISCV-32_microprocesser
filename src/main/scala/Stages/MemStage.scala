@@ -18,66 +18,75 @@ class MemStage(data: Array[Int], memSize: Int = 128) extends Module {
   io.out.funct3     := io.in.funct3
 
   // Split memory into 4 banks each bank is 1 byte wide
-  val mem0 = SyncReadMem(memSize, UInt(8.W))
-  val mem1 = SyncReadMem(memSize, UInt(8.W))
-  val mem2 = SyncReadMem(memSize, UInt(8.W))
-  val mem3 = SyncReadMem(memSize, UInt(8.W))
-  val banks = Seq(mem0, mem1, mem2, mem3)
+  val mem = SyncReadMem(memSize, Vec(4, UInt(8.W)))
   
   // Address Decoding
+  val rEnable = io.in.memRead
   val addr = io.in.aluOut
   val offset = addr(1, 0)
   val wordIdx = addr(log2Ceil(memSize * 4) - 1, 2) // Word index
 
   // Calculate address for each bank. If bank index < offset, it belongs to the next word.
-  val rData = Wire(Vec(4, UInt(8.W)))
-  for (i <- 0 until 4) {
-    val bankAddr = Mux(i.U < offset, wordIdx + 1.U, wordIdx)
-    rData(i) := banks(i).read(bankAddr)
-  }
 
   // Delay offset to match SyncReadMem latency (1 cycle) for data alignment
-  val offsetReg = RegNext(offset)
-
-  val b0 = rData(offsetReg)
-  val b1 = rData((offsetReg + 1.U)(1,0))
-  val b2 = rData((offsetReg + 2.U)(1,0))
-  val b3 = rData((offsetReg + 3.U)(1,0))
+  val offsetReg = RegEnable(offset, rEnable)
   
-  io.out.memData := Cat(b3, b2, b1, b0)
+  val rawDataVec = mem.read(wordIdx, rEnable)
+  val rawData = rawDataVec.asUInt
+  val shiftedData = rawData >> (offsetReg * 8.U)
+  val finalData = WireDefault(0.U(32.W))
+  
+switch(io.in.funct3) {
+    is(0.U) { finalData := Cat(Fill(24, shiftedData(7)), shiftedData(7,0)) }  // LB
+    is(1.U) { finalData := Cat(Fill(16, shiftedData(15)), shiftedData(15,0)) } // LH
+    is(2.U) { finalData := shiftedData }       // LW
+    is(4.U) { finalData := shiftedData(7, 0) } // LBU
+    is(5.U) { finalData := shiftedData(15, 0) } // LHU
+    is(3.U) { finalData := shiftedData } // Default/LBU fallback
+  }
+  io.out.memData := finalData
+  
+  val wEnable = WireDefault(false.B)
+  val wAddr = Wire(UInt(log2Ceil(memSize).W))
+  val wMask = Wire(Vec(4, Bool()))
+  val wData = Wire(Vec(4, UInt(8.W)))
+
+  // Default values
+  wMask := VecInit(false.B, false.B, false.B, false.B)
+  wData := VecInit(0.U(8.W), 0.U(8.W), 0.U(8.W), 0.U(8.W))
+  // Data to write (split 32-bit input into 4 bytes)
+  val alignedStoreData = io.in.storeData << (offset * 8.U)
+  val storeBytes = VecInit(alignedStoreData(7,0), alignedStoreData(15,8), alignedStoreData(23,16), alignedStoreData(31,24))
+  val uartBytes  = VecInit(io.dmemWdata(7,0), io.dmemWdata(15,8), io.dmemWdata(23,16), io.dmemWdata(31,24))
 
   // dmemWe writes aligned 32-bit words
   when(io.dmemWe) {
-    mem0.write(io.dmemWaddr, io.dmemWdata(7, 0))
-    mem1.write(io.dmemWaddr, io.dmemWdata(15, 8))
-    mem2.write(io.dmemWaddr, io.dmemWdata(23, 16))
-    mem3.write(io.dmemWaddr, io.dmemWdata(31, 24))
-  } .elsewhen(io.in.memWrite) {
+    wEnable := true.B
+    wMask := VecInit(true.B, true.B, true.B, true.B)
+    wData := uartBytes
+    wAddr := io.dmemWaddr
+    } .elsewhen(io.in.memWrite) {
+    wEnable := true.B
+    wAddr := wordIdx
+    wData := storeBytes
     
-    val data = io.in.storeData
-  
-    val wMask = WireDefault(0.U(4.W))
+    // Set masks based on alignment (offset) and size (funct3)
+    // Default Mask
+    wMask := VecInit(false.B, false.B, false.B, false.B)
     switch(io.in.funct3) {
-      is(0.U) { wMask := 1.U }  // SB (Byte 0)
-      is(1.U) { wMask := 3.U }  // SH (Bytes 0, 1)
-      is(2.U) { wMask := 15.U } // SW (Bytes 0, 1, 2, 3)
-      is(3.U) { wMask := 15.U }
+      is(0.U) { wMask(offset) := true.B }                            // SB
+      is(1.U) { wMask(offset) := true.B; wMask(offset + 1.U) := true.B } // SH
+      is(2.U) { wMask := VecInit(true.B, true.B, true.B, true.B) }   // SW
     }
-
-    val wBytes = VecInit(data(7,0), data(15,8), data(23,16), data(31,24))
-
-    for(i <- 0 until 4) {
-      // Map global byte index to data index: j = (BankI - offset) % 4
-      val j = (i.U - offset)(1, 0)
-      
-      // If this data byte is enabled
-      when(wMask(j)) {
-        val bankAddr = Mux(i.U < offset, wordIdx + 1.U, wordIdx)
-        banks(i).write(bankAddr, wBytes(j))
-      }
-    }
+  }. otherwise {
+    wEnable := false.B
+    wAddr := 0.U
+    wData := VecInit(0.U(8.W), 0.U(8.W), 0.U(8.W), 0.U(8.W))
+    wMask := VecInit(false.B, false.B, false.B, false.B)  
   }
-
+  when (wEnable) {
+    mem.write(wAddr, wData, wMask)
+  }
   io.out.aluOut  := io.in.aluOut
   io.out.wbRd       := io.in.rd
   io.out.done       := io.in.done 

@@ -1,5 +1,5 @@
 OUTDIR=.
-CC=riscv64-unknown-elf
+CC=riscv64-elf
 
 ASRCS:=$(wildcard *.s)
 CSRCS:=$(wildcard *.c)

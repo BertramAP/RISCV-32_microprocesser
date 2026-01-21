@@ -3,12 +3,12 @@ import time
 import struct
 from elftools.elf.elffile import ELFFile
 
-#PORT = '/dev/ttyUSB1'  # Change this to your UART port
-PORT = 'COM6'  # Change this to your UART port
+PORT = '/dev/ttyUSB1'  # Change this to your UART port
+#PORT = 'COM6'  # Change this to your UART port
 BAUDRATE = 115200 # Shloud be the same for all of us, so dont change it
 # Use elf file for meta data
-#FILE = "/home/ap/Dokumenter/RISCV-32_microprocesser/tests/ripes/and.out"  # Change this to the elf file path you want to upload
-FILE = "C:/Users/Bertram/OneDrive - Danmarks Tekniske Universitet/RISCV-32_microprocesser/tests/simple/addlarge.out"  # Change this to the elf file path you want to upload
+FILE = "/home/ap/Dokumenter/RISCV-32_microprocesser/tests/ripes/add.out"  # Change this to the elf file path you want to upload
+#FILE = "C:/Users/Bertram/OneDrive - Danmarks Tekniske Universitet/RISCV-32_microprocesser/tests/simple/addlarge.out"  # Change this to the elf file path you want to upload
 def uploadFirmware(ser, file_path):
     print(f"Opened port {ser.port} at {ser.baudrate} baud.")
     with open(file_path, 'rb') as f:
