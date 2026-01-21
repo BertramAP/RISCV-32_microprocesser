@@ -5,7 +5,7 @@ import chisel3.util._
 import UART.UARTInstructionLoader
 import spire.std.byte
 
-class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module {
+class LoadAndRunTester(memSizeWords: Int = 4096, PcStart: Int = 0) extends Module {
   val io = IO(new Bundle {
     val rx  = Input(Bool()) // -> io_rx in XDC      
     val tx  = Output(Bool()) // -> io_tx in XDC
@@ -41,8 +41,8 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
 
   // any UART activity => core is not running
   val loadingActive = state =/= sIdle
-
-  val combinedReset = loadingActive || reset.asBool || buyRise
+  val syncReset = RegNext(RegNext(reset.asBool))
+  val combinedReset = loadingActive || syncReset || buyRise
 
 
   val core = withReset(combinedReset) {
@@ -168,10 +168,10 @@ class LoadAndRunTester(memSizeWords: Int = 128, PcStart: Int = 0) extends Module
   }.elsewhen(core.io.done && !txCaptured) {
     doneLatched := true.B
     txCaptured := true.B
-    txData := Cat(cycleCounter, core.io.debug_regFile(10)) // example: capture reg x10 (a0) LSB
+    txData := Cat(cycleCounter, core.io.debugRegVal) // example: capture reg x10 (a0) LSB
     txState := txSend
     byteCount := 0.U
-  } .elsewhen(core.io.run && !loadingActive) {
+  }.elsewhen(core.io.run && !loadingActive && !doneLatched) {
     cycleCounter := cycleCounter + 1.U
   }
   switch(txState) {

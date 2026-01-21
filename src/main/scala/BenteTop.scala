@@ -7,8 +7,8 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val io = IO(new Bundle {
     
     // debug outputs for each stage
-    val if_pc        = Output(UInt(32.W))
-    val if_instr     = Output(UInt(32.W))
+    val if_pc       = Output(UInt(32.W))
+    val if_instr    = Output(UInt(32.W))
 
     val ifid_instr   = Output(UInt(32.W))
 
@@ -35,7 +35,8 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
     val wb_rd       = Output(UInt(5.W))
     val wb_wbEnable = Output(Bool())
     
-    val debug_regFile = Output(Vec(32, UInt(32.W)))
+    // For debugging with uart
+    val debugRegVal = Output(UInt(32.W))
   
     // Board outputs
     val done = Output(Bool())
@@ -78,9 +79,9 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
   val ifIdValid = RegInit(false.B) // Valid bit for synchronous memory bypass
-
   io.if_pc := fetchStage.io.out.pc
   io.if_instr := fetchStage.io.out.instr
+
 
   val decodeStage = Module(new DecodeStage())
   decodeStage.io.in.instr := Mux(ifIdValid, ifIdReg.instr, 0.U)
@@ -148,8 +149,8 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val branchFlush = RegNext(branchTaken, false.B)
 
   val stallIDEx = (idExMemRead && (idExRd =/= 0.U) && ((idExRd === rs1 && usesSrc1) || (idExRd === rs2 && usesSrc2)))
-  val stallExMem = (exMemRead   && (exMemRd =/= 0.U) && ((exMemRd === rs1 && usesSrc1) || (exMemRd === rs2 && usesSrc2)))
-  shouldStall := stallIDEx || stallExMem
+  //val stallExMem = (exMemRead   && (exMemRd =/= 0.U) && ((exMemRd === rs1 && usesSrc1) || (exMemRd === rs2 && usesSrc2)))
+  shouldStall := stallIDEx //|| stallExMem
   // If branch is taken, we flush pipeline, so we shouldn't stall for the flushed instruction
   globalStall := (shouldStall && !branchTaken) || !io.run
 
@@ -210,7 +211,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
      idExReg.rs2_addr := decodeStage.io.out.src2
 
   }
-  io.debug_regFile := registerFile.io.debug_registers
+  io.debugRegVal := registerFile.io.debugRegVal
   // Debug outputs
   io.ifid_instr := ifIdReg.instr
 
