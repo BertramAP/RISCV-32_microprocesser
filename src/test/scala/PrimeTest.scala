@@ -11,11 +11,11 @@ class PrimeTest extends AnyFlatSpec with ChiselScalatestTester {
   behavior of "Prime Benchmark"
 
   it should "run prime.bin until completion" in {
-    val binFile = "tests/Prime_benchmark/prime.bin"
-    if (!new java.io.File(binFile).exists) {
-        cancel(s"Binary file $binFile not found")
+    val elfFile = "tests/Prime_benchmark/prime.elf"
+    if (!new java.io.File(elfFile).exists) {
+        cancel(s"Binary file $elfFile not found")
     }
-    val (imem, dmem, start) = ElfLoader.load(binFile)
+    val (imem, dmem, start) = ElfLoader.load(elfFile)
 
     // Using 16KB memory size as used in InstructionTest (4096 words)
     val dmemSize = 4096 

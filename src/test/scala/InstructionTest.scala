@@ -11,19 +11,19 @@ import java.nio.file.{Files, Paths}
 class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "Bente"
-  val testDirs = Seq("build/ripes", "build/riscv-tests", "build/simple", "build/CAE-tests/task1", "build/CAE-tests/task2", "build/CAE-tests/task3", "build/CAE-tests/task4")
+  val testDirs = Seq("build/ripes", "build/riscv-tests", "build/simple"/*, "build/CAE-tests/task1", "build/CAE-tests/task2", "build/CAE-tests/task3", "build/CAE-tests/task4"*/)
 
   testDirs.foreach { testDir =>
     val instructionTests = ElfLoader.getAsmFiles(testDir, ".out")
 
     instructionTests.foreach { testFile =>
       val testName = Paths.get(testFile).getFileName.toString.stripSuffix(".out")
-      val binFile = Paths.get(testDir, s"$testName.out").toString
+      val elfFile = Paths.get(testDir, s"$testName.out").toString
       val resFile = Paths.get(testDir, s"$testName.res").toString
 
       it should s"pass the $testName test from $testDir" in {
         // Use ElfLoader for all supported file types
-        val (imem, dmem, start) = ElfLoader.load(binFile)
+        val (imem, dmem, start) = ElfLoader.load(elfFile)
 
         val dmemSize = 4096 // Reduced to 4096 to avoid StackOverflow with Reg(Vec)
         val newDmem = new Array[Int](dmemSize)

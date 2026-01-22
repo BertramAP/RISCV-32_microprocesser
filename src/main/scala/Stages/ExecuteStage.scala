@@ -95,7 +95,6 @@ class ExecuteStage extends Module {
     val aluZero = WireDefault(false.B)
 
     // ALU Logic
-    // src1 and src2 are already defined above with forwarding logic
 
     val aluOp = io.in.aluOp
     val shamt = src2(4, 0)
