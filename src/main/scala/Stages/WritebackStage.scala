@@ -6,7 +6,7 @@ import chisel3.util._
 class WritebackStage extends Module {
   val io = IO(new Bundle {
     val in = Input(new MemWbIO)
-
+    // should be bundled
     val rfWriteData = Output(UInt(32.W))
     val rfWriteRd   = Output(UInt(5.W))
     val rfRegWrite  = Output(Bool())

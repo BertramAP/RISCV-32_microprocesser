@@ -34,7 +34,7 @@ class ExecuteStage extends Module {
     } .elsewhen (forwardA_WB) {
         src1_forwarded := io.IO_forwarding.wb_writeData
     } .otherwise {
-        src1_forwarded := Mux(io.in.isPC, io.in.pc, io.in.src1) // Use values from buffer (or PC)
+        src1_forwarded := Mux(io.in.isPC, io.in.pc, io.in.src1) // Use values from src1 or PC
     }
 
     // Forwarding B (rs2)
