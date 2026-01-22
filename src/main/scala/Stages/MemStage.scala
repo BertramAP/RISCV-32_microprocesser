@@ -4,7 +4,7 @@ import chisel3.util._
 
 class MemStage(data: Array[Int], memSize: Int = 4096) extends Module {
   val io = IO(new Bundle {
-    val in = Input(new ExecuteMemIO)
+    val in = Input(new ExecuteMemIO(memSize))
     val out = Output(new MemWbIO)
     // inputs for InstructionTest   
     val dmemWe    = Input(Bool())
@@ -26,20 +26,13 @@ class MemStage(data: Array[Int], memSize: Int = 4096) extends Module {
   val mem3 = SyncReadMem(memSize, UInt(8.W))
   val banks = Seq(mem0, mem1, mem2, mem3)
   
-  // Address Decoding
-  val addr = io.in.aluOut
-  val offset = addr(1, 0)
-  val wordIdx = addr(log2Ceil(memSize * 4) - 1, 2) // Word index
 
   // Calculate address for each bank. If bank index < offset, it belongs to the next word.
   val rData = Wire(Vec(4, UInt(8.W)))
-  for (i <- 0 until 4) {
-    val bankAddr = Mux(i.U < offset, wordIdx + 1.U, wordIdx)
-    rData(i) := banks(i).read(bankAddr)
-  }
-
+  val offset = io.in.aluOut(1, 0) // Byte offset within the 32-bit word address
   // Delay offset to match SyncReadMem latency (1 cycle) for data alignment
   val offsetReg = RegNext(offset)
+  val wordIdx = io.in.aluOut(log2Ceil(memSize * 4) - 1, 2) // Word index
 
   val b0 = rData(offsetReg)
   val b1 = rData((offsetReg + 1.U)(1,0))
@@ -49,42 +42,28 @@ class MemStage(data: Array[Int], memSize: Int = 4096) extends Module {
   io.out.memData := Cat(b3, b2, b1, b0)
 
   // Write Multiplexing
-  val wMask = WireDefault(0.U(4.W))
-  when(io.in.memWrite) {
-    switch(io.in.funct3) {
-      is(0.U) { wMask := 1.U }  // SB (Byte 0)
-      is(1.U) { wMask := 3.U }  // SH (Bytes 0, 1)
-      is(2.U) { wMask := 15.U } // SW (Bytes 0, 1, 2, 3)
-      is(3.U) { wMask := 15.U }
-    }
-  }
-
-  val wBytes = VecInit(io.in.storeData(7,0), io.in.storeData(15,8), io.in.storeData(23,16), io.in.storeData(31,24))
 
   // Test write data bytes
   val testWBytes = VecInit(io.dmemWdata(7,0), io.dmemWdata(15,8), io.dmemWdata(23,16), io.dmemWdata(31,24))
 
 
   for (i <- 0 until 4) {
+    // Write mask for each byte
+    val writeEnable = io.dmemWe || io.in.bankMemWrite(i)
     // Map global byte index to data index: j = (BankI - offset) % 4
-    val j = (i.U - offset)(1, 0)
-    // Processor address for this bank
-    val processorBankAddr = Mux(i.U < offset, wordIdx + 1.U, wordIdx)
-    // Processor write enable for this bank
-    val processorWe = io.in.memWrite && wMask(j)
-    val processorData = wBytes(j)
-
+    
     // Multiplexing for testing
-    val writeEnable = io.dmemWe || processorWe
-    val writeAddr = Mux(io.dmemWe, io.dmemWaddr, processorBankAddr)
-    val writeData = Mux(io.dmemWe, testWBytes(i), processorData)
+    val writeAddr = Mux(io.dmemWe, io.dmemWaddr, io.in.bankAddr(i))
+    val writeData = Mux(io.dmemWe, testWBytes(i), io.in.bankData(i))
+
+    rData(i) := banks(i).read(io.in.bankAddr(i))
 
     when(writeEnable) {
       banks(i).write(writeAddr, writeData)
     }
   }
 
-  io.out.aluOut  := io.in.aluOut
+  io.out.aluOut     := io.in.aluOut
   io.out.wbRd       := io.in.rd
   io.out.done       := io.in.done 
 }

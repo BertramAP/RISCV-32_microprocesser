@@ -60,16 +60,16 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   // ID/EX pipeline register
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
   
-  val executeStage = Module(new ExecuteStage())
+  val executeStage = Module(new ExecuteStage(memSizeWords))
   fetchStage.io.in.branchTaken := executeStage.io.BranchOut.branchTaken
   fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
   
   executeStage.io.in := idExReg
 
   // EX/MEM pipeline registers
-  val exMemReg = RegInit(0.U.asTypeOf(new ExecuteMemIO))
+  val exMemReg = RegInit(0.U.asTypeOf(new ExecuteMemIO(memSizeWords)))
   exMemReg := executeStage.io.out
-    
+
   val memStage = Module(new MemStage(dmemInitArr, memSizeWords))
   memStage.io.in := exMemReg
 
@@ -110,7 +110,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val stallIDEx = (idExMemRead && (idExRd =/= 0.U) && ((idExRd === rs1 && usesSrc1) || (idExRd === rs2 && usesSrc2)))
   shouldStall := stallIDEx
   // If branch is taken, we flush pipeline, so we shouldn't stall for the flushed instruction
-  globalStall := (shouldStall && !branchTaken) || !io.run
+  globalStall := (shouldStall) || !io.run
   val branchFlush = RegNext(branchTaken, false.B)
 
 
@@ -138,33 +138,42 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   executeStage.io.IO_forwarding.wb_regWrite := writeBackStage.io.rfRegWrite
   executeStage.io.IO_forwarding.wb_writeData := writeBackStage.io.rfWriteData
 
+// 1. Default: Always load the next instruction from Decode.
+  // This connects the heavy data buses (src1, src2, imm) directly, 
+  // without 'branchTaken' interfering in their path.
+  idExReg.imm      := decodeStage.io.out.imm
+  idExReg.dest     := decodeStage.io.out.dest
+  idExReg.funct3   := decodeStage.io.out.funct3
+  idExReg.funct7   := decodeStage.io.out.funct7
+  idExReg.pc       := decodeStage.io.out.pc
+  idExReg.isPC     := decodeStage.io.out.isPC
+  idExReg.aluSrc   := decodeStage.io.out.aluSrc
+  idExReg.aluOp    := decodeStage.io.out.aluOp
+  idExReg.memToReg := decodeStage.io.out.memToReg
+  
+  idExReg.src1     := registerFile.io.readData1
+  idExReg.src2     := registerFile.io.readData2
+  idExReg.rs1_addr := decodeStage.io.out.src1
+  idExReg.rs2_addr := decodeStage.io.out.src2
 
-
+  // 2. Control Signals: Load normally, OR kill them if we need to flush/stall.
+  // 'branchTaken' only loads these few bits, reducing fanout from ~150 to ~10.
   when (branchTaken || shouldStall) {
-     idExReg := 0.U.asTypeOf(new DecodeExecuteIO) // Flush
+     idExReg.regWrite := false.B
+     idExReg.memWrite := false.B
+     idExReg.memRead  := false.B
+     idExReg.isBranch := false.B
+     idExReg.isJump   := false.B
+     idExReg.isJumpr  := false.B
+     idExReg.done     := false.B
   } .otherwise {
-     idExReg.imm      := decodeStage.io.out.imm
-     idExReg.dest     := decodeStage.io.out.dest
-     idExReg.funct3   := decodeStage.io.out.funct3
-     idExReg.funct7   := decodeStage.io.out.funct7
-     idExReg.pc       := decodeStage.io.out.pc
-     idExReg.isPC     := decodeStage.io.out.isPC
-     idExReg.isJump   := decodeStage.io.out.isJump
-     idExReg.isJumpr  := decodeStage.io.out.isJumpr
-     idExReg.isBranch := decodeStage.io.out.isBranch
-     idExReg.aluSrc   := decodeStage.io.out.aluSrc
-     idExReg.aluOp    := decodeStage.io.out.aluOp
+     idExReg.regWrite := decodeStage.io.out.regWrite
      idExReg.memWrite := decodeStage.io.out.memWrite
      idExReg.memRead  := decodeStage.io.out.memRead
-     idExReg.regWrite := decodeStage.io.out.regWrite
-     idExReg.memToReg := decodeStage.io.out.memToReg
+     idExReg.isBranch := decodeStage.io.out.isBranch
+     idExReg.isJump   := decodeStage.io.out.isJump
+     idExReg.isJumpr  := decodeStage.io.out.isJumpr
      idExReg.done     := decodeStage.io.out.done
-
-     idExReg.src1 := registerFile.io.readData1
-     idExReg.src2 := registerFile.io.readData2
-     idExReg.rs1_addr := decodeStage.io.out.src1
-     idExReg.rs2_addr := decodeStage.io.out.src2
-
   }
   io.debugRegVal := registerFile.io.debugRegVal
   io.debug_regFile := registerFile.io.debug_regFile

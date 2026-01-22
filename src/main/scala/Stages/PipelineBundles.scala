@@ -1,6 +1,7 @@
 package stages
 
 import chisel3._
+import chisel3.util._
 
 class FetchDecodeIO extends Bundle {
   val instr = UInt(32.W)
@@ -69,14 +70,16 @@ class DecodeOutputsIO extends Bundle {
   val usesSrc2 = Bool()
 }
 
-class ExecuteMemIO extends Bundle {
+class ExecuteMemIO(memSize: Int = 4096) extends Bundle {
     val pc          = UInt(32.W) // Debug msg
     val aluOut      = UInt(32.W)
     val addrWord    = UInt(32.W)    // Word index
-    val storeData   = UInt(32.W)
     val rd          = UInt(5.W)
     val funct3      = UInt(3.W)
-    
+
+    val bankAddr    = Vec(4, UInt(log2Ceil(memSize).W))
+    val bankData    = Vec(4, UInt(8.W)) 
+    val bankMemWrite= Vec(4, Bool())
     // Control signals for memory stage
     val memRead     = Bool()
     val memWrite    = Bool()
