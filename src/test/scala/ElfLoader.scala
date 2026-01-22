@@ -61,13 +61,13 @@ object ElfLoader {
   }
 
  def load(fileName: String): (Array[Int], Array[Int], Int) = {
-    if (fileName.endsWith(".bin")) {
+    /*if (fileName.endsWith(".bin")) {
       val bins = readBin(fileName)
       (bins, bins, 0)
     } else if (fileName.endsWith(".hex")) {
       val hexs = readHex(fileName)
       (hexs, hexs, 0x200)
-    } else {
+    } else {*/
       val exe = lib.Executable.from(new File(fileName))
       val sections = exe.getAllLoadableSections()
       
@@ -99,4 +99,4 @@ object ElfLoader {
       (memory, memory, relativeEntry & ~3)
     }
   }
-}
+//}

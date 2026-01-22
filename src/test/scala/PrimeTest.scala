@@ -10,12 +10,12 @@ class PrimeTest extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "Prime Benchmark"
 
-  it should "run prime.bin until completion" in {
-    val binFile = "tests/Prime_benchmark/prime.bin"
-    if (!new java.io.File(binFile).exists) {
-        cancel(s"Binary file $binFile not found")
+  it should "run prime until completion" in {
+    val elfFile = "tests/Prime_benchmark/prime.elf"
+    if (!new java.io.File(elfFile).exists) {
+        cancel(s"Elf file $elfFile not found")
     }
-    val (imem, dmem, start) = ElfLoader.load(binFile)
+    val (imem, dmem, start) = ElfLoader.load(elfFile)
 
     val dmemSize = 4096 
     val newDmem = new Array[Int](dmemSize)
@@ -59,12 +59,12 @@ class PrimeTest extends AnyFlatSpec with ChiselScalatestTester {
       println(s"Prime Benchmark took $cycles cycles")
     }
   }
-  it should "run gcd.bin until completion" in {
-    val binFile = "tests/GCD_Benchmark/gcd.bin"
-    if (!new java.io.File(binFile).exists) {
-        cancel(s"Binary file $binFile not found")
+  it should "run gcd until completion" in {
+    val elfFile = "tests/GCD_Benchmark/gcd.elf"
+    if (!new java.io.File(elfFile).exists) {
+        cancel(s"Elf file $elfFile not found")
     }
-    val (imem, dmem, start) = ElfLoader.load(binFile)
+    val (imem, dmem, start) = ElfLoader.load(elfFile)
 
     val dmemSize = 4096 
     val newDmem = new Array[Int](dmemSize)
