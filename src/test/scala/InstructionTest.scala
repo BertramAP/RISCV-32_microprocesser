@@ -11,7 +11,7 @@ import java.nio.file.{Files, Paths}
 class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "Bente"
-  val testDirs = Seq("build/ripes", "build/riscv-tests", "build/simple"/*, "build/CAE-tests/task1", "build/CAE-tests/task2", "build/CAE-tests/task3", "build/CAE-tests/task4"*/)
+  val testDirs = Seq("build/ripes", "build/riscv-tests", "build/simple", "build/CAE-tests/task1", "build/CAE-tests/task2", "build/CAE-tests/task3", "build/CAE-tests/task4")
 
   testDirs.foreach { testDir =>
     val instructionTests = ElfLoader.getAsmFiles(testDir, ".out")
@@ -25,7 +25,7 @@ class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
         // Use ElfLoader for all supported file types
         val (imem, dmem, start) = ElfLoader.load(elfFile)
 
-        val dmemSize = 4096 // Reduced to 4096 to avoid StackOverflow with Reg(Vec)
+        val dmemSize = 4096 
         val newDmem = new Array[Int](dmemSize)
         // Check bounds before copying
         val copyLen = math.min(dmem.length, dmemSize)
@@ -59,7 +59,7 @@ class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
 
           // Run Simulation
           c.io.run.poke(true.B)
-          c.clock.setTimeout(10000) 
+          c.clock.setTimeout(200000)
           
           var cycles = 0
           while (!c.io.done.peek().litToBoolean) {
