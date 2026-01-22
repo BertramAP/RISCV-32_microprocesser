@@ -9,7 +9,10 @@ class Executable(val name: String, val elf: ElfFile) {
   def getSection(name: String): Option[Executable.Section] = {
     val section = elf.firstSectionByName(name)
     if (section == null) None
-    else Some(Executable.Section(section.header.sh_addr & 0xffffffffL, section.getData))
+    else {
+      val name = section.header.getName()
+      Some(Executable.Section(name, section.header.sh_addr & 0xffffffffL, section.getData))
+    }
   }
 
   // Gets all sections that should be loaded into memory (Progbits)
@@ -19,7 +22,8 @@ class Executable(val name: String, val elf: ElfFile) {
       val sh = elf.getSection(i)
       // 1 = SHT_PROGBITS (data/code), 8 = SHT_NOBITS (bss)
       if (sh.header.sh_type == 1 || sh.header.sh_type == 8) {
-        sections += Executable.Section(sh.header.sh_addr & 0xffffffffL, sh.getData)
+        val name = sh.header.getName()
+        sections += Executable.Section(name, sh.header.sh_addr & 0xffffffffL, sh.getData)
       }
     }
     sections.toList
@@ -29,7 +33,7 @@ class Executable(val name: String, val elf: ElfFile) {
 }
 
 object Executable {
-  case class Section(start: Long, data: Array[Byte]) {
+  case class Section(name: String, start: Long, data: Array[Byte]) {
     val end: Long = start + data.length
     def getWords: Seq[Long] = {
       if (data == null) return Seq.fill(0)(0L)

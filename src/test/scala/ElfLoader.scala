@@ -81,7 +81,8 @@ object ElfLoader {
       val memory = new Array[Int](sizeInWords)
 
       for (s <- sections) {
-        val wordOffset = ((s.start - minAddr) / 4).toInt
+        if (s.name != ".comment" && s.name != ".riscv.attributes" && s.name != ".note.gnu.build-id") {
+          val wordOffset = ((s.start - minAddr) / 4).toInt
         val words = s.getWords
         for (i <- words.indices) {
           if (wordOffset + i < memory.length) {
@@ -89,6 +90,7 @@ object ElfLoader {
           }
         }
       }
+    }
 
       // Entry point must be relative to our memory array base
       val relativeEntry = (exe.getEntryPoint - minAddr).toInt

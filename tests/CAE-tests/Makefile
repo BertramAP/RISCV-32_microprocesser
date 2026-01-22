@@ -10,10 +10,16 @@ OUTDIR = ../../build/CAE-tests
 
 # Finding sources
 TASKS = task1 task2 task3 task4
-SOURCES = $(foreach task,$(TASKS),$(wildcard $(task)/*.s))
-# Convert source paths to output paths (e.g., task1/add.s -> ../../build/CAE-tests/task1/add.out)
-OBJECTS = $(patsubst %.s,$(OUTDIR)/%.out,$(SOURCES))
-BINARIES = $(patsubst %.s,$(OUTDIR)/%.bin,$(SOURCES))
+SOURCES_S = $(foreach task,$(TASKS),$(wildcard $(task)/*.s))
+SOURCES_C = $(foreach task,$(TASKS),$(wildcard $(task)/*.c))
+# Filter out C files that have corresponding S files
+SOURCES_C_FILTERED = $(filter-out $(SOURCES_S:.s=.c), $(SOURCES_C))
+
+OBJECTS_S = $(patsubst %.s,$(OUTDIR)/%.out,$(SOURCES_S))
+OBJECTS_C = $(patsubst %.c,$(OUTDIR)/%.out,$(SOURCES_C_FILTERED))
+
+OBJECTS = $(OBJECTS_S) $(OBJECTS_C)
+BINARIES = $(patsubst %.out,%.bin,$(OBJECTS))
 
 .PHONY: all clean directories
 
@@ -24,6 +30,10 @@ directories:
 
 # Rule to compile .s to .out (ELF)
 $(OUTDIR)/%.out: %.s
+	$(CC) $(CFLAGS) -o $@ $<
+
+# Rule to compile .c to .out (ELF)
+$(OUTDIR)/%.out: %.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 # Rule to convert .out to .bin (Binary)
