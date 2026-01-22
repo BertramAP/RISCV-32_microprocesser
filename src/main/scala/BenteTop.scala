@@ -8,19 +8,18 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
     
     // For debugging with uart
     val debugRegVal = Output(UInt(32.W))
+    // For InstructionTest
     val debug_regFile = Output(Vec(32, UInt(32.W)))
   
     // Board outputs
     val done = Output(Bool())
     
-    // Instruction memory write ports for testing
+    // Instruction memory write ports for InstructionTest
     val imemWe    = Input(Bool())
     val imemWaddr = Input(UInt(log2Ceil(memSizeWords).W))
     val imemWdata = Input(UInt(32.W))
 
-
-
-    // Data memory write ports for testing
+    // Data memory write ports for InstructionTest
     val dmemWe    = Input(Bool())
     val dmemWaddr = Input(UInt(log2Ceil(memSizeWords).W))
     val dmemWdata = Input(UInt(32.W))
@@ -29,7 +28,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   })
 
   val imem = SyncReadMem(memSizeWords, UInt(32.W))
-  
+  // Instruction memory write ports for InstructionTest
   when(io.imemWe) {
     imem.write(io.imemWaddr, io.imemWdata)
   }
@@ -37,9 +36,8 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val fetchStage = Module(new FetchStage(PcStart, memSizeWords))
 
   val shouldStall = Wire(Bool())
-  val globalStall = Wire(Bool()) // shouldStall || !io.run // Moved assignment down
+  val globalStall = Wire(Bool())
 
-  // Use SyncReadMem read with enable to maintain pipeline timing and support stalling
   fetchStage.io.imemInstr := imem.read(fetchStage.io.imemAddr, !globalStall)
   
   fetchStage.io.in.stall := globalStall
@@ -48,7 +46,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
 
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
-  val ifIdValid = RegInit(false.B) // Valid bit for synchronous memory bypass
+  val ifIdValid = RegInit(false.B)
 
 
   val decodeStage = Module(new DecodeStage())
@@ -75,15 +73,11 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val memStage = Module(new MemStage(dmemInitArr, memSizeWords))
   memStage.io.in := exMemReg
 
-  // Memory write ports for testing
+  // Memory write ports for InstructionTest
   memStage.io.dmemWe    := io.dmemWe
   memStage.io.dmemWaddr := io.dmemWaddr
   memStage.io.dmemWdata := io.dmemWdata
 
-
-
-
-  
   // MEM/WB pipeline registers
   val memWriteBackReg = RegInit(0.U.asTypeOf(new MemWbIO))
   memWriteBackReg := memStage.io.out
@@ -92,12 +86,12 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   writeBackStage.io.in := memWriteBackReg
   writeBackStage.io.in.memData := memStage.io.out.memData // Bypass memWriteBackReg for memData due to 1-cycle SyncReadMem latency.
 
-
+ // Register file writeback
   registerFile.io.writeRegister := writeBackStage.io.rfWriteRd
   registerFile.io.writeData := writeBackStage.io.rfWriteData
   registerFile.io.regWrite := writeBackStage.io.rfRegWrite
   
-  io.done := writeBackStage.io.done
+  io.done := writeBackStage.io.done  
   fetchStage.io.in.done := writeBackStage.io.done
 
   
