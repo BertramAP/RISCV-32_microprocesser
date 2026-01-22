@@ -177,4 +177,5 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   }
   io.debugRegVal := registerFile.io.debugRegVal
   io.debug_regFile := registerFile.io.debug_regFile
+  
 }
