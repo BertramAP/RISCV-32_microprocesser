@@ -219,7 +219,7 @@ class LoadAndRunTester(memSizeWords: Int = 4096, PcStart: Int = 0) extends Modul
   [3] doneLatched
   [4] core LED output (x1===1)
   [7:5] unused */
-  io.led := Cat(0.U(2.W), core.io.led, doneLatched, core.io.done, core.io.run, loadedAll, loadingActive)
+  io.led := Cat(0.U(2.W), 0.U(1.W), doneLatched, core.io.done, core.io.run, loadedAll, loadingActive)
 }
 
 object LoadAndRunTester extends App {
