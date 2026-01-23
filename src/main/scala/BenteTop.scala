@@ -44,11 +44,10 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
 
   // IF/ID pipeline register
   val ifIdReg = RegInit(0.U.asTypeOf(new FetchDecodeIO))
-  val ifIdValid = RegInit(false.B)
 
 
   val decodeStage = Module(new DecodeStage())
-  decodeStage.io.in.instr := Mux(ifIdValid, ifIdReg.instr, 0.U)
+  decodeStage.io.in.instr := ifIdReg.instr
   decodeStage.io.in.pc := ifIdReg.pc
   
   val registerFile = Module(new RegisterFile())
@@ -59,8 +58,8 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val idExReg = RegInit(0.U.asTypeOf(new DecodeExecuteIO))
   
   val executeStage = Module(new ExecuteStage(memSizeWords))
-  fetchStage.io.in.branchTaken := executeStage.io.BranchOut.branchTaken
-  fetchStage.io.in.branchTarget := executeStage.io.BranchOut.branchTarget
+  fetchStage.io.in.branchTaken := executeStage.io.branchOut.branchTaken
+  fetchStage.io.in.branchTarget := executeStage.io.branchOut.branchTarget
   
   executeStage.io.in := idExReg
 
@@ -103,7 +102,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   val usesSrc1 = decodeStage.io.out.usesSrc1
   val usesSrc2 = decodeStage.io.out.usesSrc2
   
-  val branchTaken = executeStage.io.BranchOut.branchTaken
+  val branchTaken = executeStage.io.branchOut.branchTaken
 
   val stallIDEx = (idExMemRead && (idExRd =/= 0.U) && ((idExRd === rs1 && usesSrc1) || (idExRd === rs2 && usesSrc2)))
   shouldStall := stallIDEx
@@ -115,26 +114,23 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   // IF/ID Update Logic
   when (branchTaken || branchFlush) {
     ifIdReg := 0.U.asTypeOf(new FetchDecodeIO) // Flush
-    ifIdValid := false.B
   } .elsewhen (!globalStall) {
     ifIdReg := fetchStage.io.out
-    ifIdValid := true.B
   } .otherwise {
     // Stall: keep current value
     ifIdReg := ifIdReg
-    ifIdValid := ifIdValid
   }
 
   // ID/EX Update Logic & Forwarding
   // Forwarding Logic now in ExecuteStage
-  executeStage.io.IO_forwarding.mem_rd := memStage.io.out.wbRd 
-  executeStage.io.IO_forwarding.mem_regWrite := memStage.io.out.wbRegWrite
+  executeStage.io.forwarding.mem_rd := memStage.io.out.wbRd 
+  executeStage.io.forwarding.mem_regWrite := memStage.io.out.wbRegWrite
 
-  executeStage.io.IO_forwarding.mem_aluOut := memStage.io.out.aluOut
+  executeStage.io.forwarding.mem_aluOut := memStage.io.out.aluOut
   
-  executeStage.io.IO_forwarding.wb_rd := writeBackStage.io.rfWriteRd
-  executeStage.io.IO_forwarding.wb_regWrite := writeBackStage.io.rfRegWrite
-  executeStage.io.IO_forwarding.wb_writeData := writeBackStage.io.rfWriteData
+  executeStage.io.forwarding.wb_rd := writeBackStage.io.rfWriteRd
+  executeStage.io.forwarding.wb_regWrite := writeBackStage.io.rfRegWrite
+  executeStage.io.forwarding.wb_writeData := writeBackStage.io.rfWriteData
 
   // 1. Default: Always load the next instruction from Decode.
   // This connects the heavy data buses (src1, src2, imm) directly, 
