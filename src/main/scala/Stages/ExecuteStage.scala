@@ -9,16 +9,8 @@ class ExecuteStage(memSize: Int = 4096) extends Module {
       // Outputs to the Memory stage
       val out = Output(new ExecuteMemIO(memSize))
       // Outputs to the Fetch stage for branch handling
-    val IO_forwarding = Input(new Bundle {
-        val mem_rd = UInt(5.W)
-        val mem_regWrite = Bool()
-        val mem_aluOut = UInt(32.W)
-        
-        val wb_rd = UInt(5.W)
-        val wb_regWrite = Bool()
-        val wb_writeData = UInt(32.W)
-    })
-    val BranchOut = Output(new FetchBranchIO)
+    val forwarding = Input(new ForwardingIO)
+    val branchOut = Output(new FetchBranchIO)
     })
 
     // Forwarding Logic
@@ -26,25 +18,25 @@ class ExecuteStage(memSize: Int = 4096) extends Module {
     val src2_forwarded = Wire(UInt(32.W))
 
     // Forwarding A (rs1)
-    val forwardA_MEM = io.IO_forwarding.mem_regWrite && io.IO_forwarding.mem_rd =/= 0.U && io.IO_forwarding.mem_rd === io.in.rs1_addr
-    val forwardA_WB  = io.IO_forwarding.wb_regWrite  && io.IO_forwarding.wb_rd  =/= 0.U && io.IO_forwarding.wb_rd  === io.in.rs1_addr
+    val forwardA_MEM = io.forwarding.mem_regWrite && io.forwarding.mem_rd =/= 0.U && io.forwarding.mem_rd === io.in.rs1_addr
+    val forwardA_WB  = io.forwarding.wb_regWrite  && io.forwarding.wb_rd  =/= 0.U && io.forwarding.wb_rd  === io.in.rs1_addr
 
     when (forwardA_MEM) {
-        src1_forwarded := io.IO_forwarding.mem_aluOut
+        src1_forwarded := io.forwarding.mem_aluOut
     } .elsewhen (forwardA_WB) {
-        src1_forwarded := io.IO_forwarding.wb_writeData
+        src1_forwarded := io.forwarding.wb_writeData
     } .otherwise {
         src1_forwarded := Mux(io.in.isPC, io.in.pc, io.in.src1) // Use values from src1 or PC
     }
 
     // Forwarding B (rs2)
-    val forwardB_MEM = io.IO_forwarding.mem_regWrite && io.IO_forwarding.mem_rd =/= 0.U && io.IO_forwarding.mem_rd === io.in.rs2_addr
-    val forwardB_WB  = io.IO_forwarding.wb_regWrite  && io.IO_forwarding.wb_rd  =/= 0.U && io.IO_forwarding.wb_rd  === io.in.rs2_addr
+    val forwardB_MEM = io.forwarding.mem_regWrite && io.forwarding.mem_rd =/= 0.U && io.forwarding.mem_rd === io.in.rs2_addr
+    val forwardB_WB  = io.forwarding.wb_regWrite  && io.forwarding.wb_rd  =/= 0.U && io.forwarding.wb_rd  === io.in.rs2_addr
 
     when (forwardB_MEM) {
-        src2_forwarded := io.IO_forwarding.mem_aluOut
+        src2_forwarded := io.forwarding.mem_aluOut
     } .elsewhen (forwardB_WB) {
-        src2_forwarded := io.IO_forwarding.wb_writeData
+        src2_forwarded := io.forwarding.wb_writeData
     } .otherwise {
         src2_forwarded := io.in.src2
     }
@@ -63,8 +55,8 @@ class ExecuteStage(memSize: Int = 4096) extends Module {
     io.out.memToReg := io.in.memToReg
     io.out.done := io.in.done
 
-    io.BranchOut.done := io.in.done
-    io.BranchOut.stall := false.B
+    io.branchOut.done := io.in.done
+    io.branchOut.stall := false.B
 
     val branchCond = WireDefault(false.B)
 
@@ -130,19 +122,19 @@ class ExecuteStage(memSize: Int = 4096) extends Module {
     }
     aluZero := aluOut === 0.U
 
-    io.BranchOut.branchTaken := (io.in.isBranch && branchCond) || (io.in.isJump || io.in.isJumpr)
+    io.branchOut.branchTaken := (io.in.isBranch && branchCond) || (io.in.isJump || io.in.isJumpr)
 
     // Jump targets
     val jaltarget = io.in.pc + io.in.imm
     val jalrtarget = (src1_forwarded + io.in.imm) & (~1.U(32.W))
-    io.BranchOut.branchTarget := 0.U
+    io.branchOut.branchTarget := 0.U
     when(io.in.isJumpr) {
-      io.BranchOut.branchTarget := jalrtarget
+      io.branchOut.branchTarget := jalrtarget
     } .elsewhen(io.in.isJump) {
-      io.BranchOut.branchTarget := jaltarget
+      io.branchOut.branchTarget := jaltarget
     } .elsewhen(io.in.isBranch && branchCond) {
-      io.BranchOut.stall := false.B // Stall logic implemented in BenteTop
-      io.BranchOut.branchTarget := io.in.pc + io.in.imm
+      io.branchOut.stall := false.B // Stall logic implemented in BenteTop
+      io.branchOut.branchTarget := io.in.pc + io.in.imm
     }
   
     when(io.in.isJump || io.in.isJumpr) {

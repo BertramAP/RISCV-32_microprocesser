@@ -121,3 +121,13 @@ class ControllerExecuteIO extends Bundle {
   val memToReg = Bool()
   val done = Bool()
 }
+
+class ForwardingIO extends Bundle {
+    val mem_rd = UInt(5.W)
+    val mem_regWrite = Bool()
+    val mem_aluOut = UInt(32.W)
+    
+    val wb_rd = UInt(5.W)
+    val wb_regWrite = Bool()
+    val wb_writeData = UInt(32.W)
+}

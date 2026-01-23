@@ -20,6 +20,7 @@ endif
 
 CC = $(CROSS)gcc
 OBJCOPY = $(CROSS)objcopy
+OBJDUMP = $(CROSS)objdump
 
 # Compiler flags for RV32I bare metal
 CFLAGS = -mabi=ilp32 -O0 
@@ -53,6 +54,9 @@ $(TARGET).bin: $(TARGET).elf
 
 test-hw: $(TARGET).elf
 	python3 benchy.py --addr $(UART_ADDR) --csr $(CSR_EN)
+
+dump: $(TARGET).elf
+	$(OBJDUMP) -D $< > $(TARGET).dump
 
 clean:
 	rm -f *.elf *.o *.bin
