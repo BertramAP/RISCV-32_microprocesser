@@ -2,9 +2,9 @@ name: Scala CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, Working ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, Working ]
   workflow_dispatch: 
 
 permissions:

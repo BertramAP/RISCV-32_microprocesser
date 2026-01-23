@@ -9,12 +9,9 @@
 /target
 /test_run_dir
 /generated
-/build
 /quartus
 !/quartus/*.qsf
 !/quartus/*.qpf
 
-*.out
-*.bin
 
 

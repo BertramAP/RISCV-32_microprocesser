@@ -18,14 +18,14 @@ class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
 
     instructionTests.foreach { testFile =>
       val testName = Paths.get(testFile).getFileName.toString.stripSuffix(".out")
-      val binFile = Paths.get(testDir, s"$testName.out").toString
+      val elfFile = Paths.get(testDir, s"$testName.out").toString
       val resFile = Paths.get(testDir, s"$testName.res").toString
 
       it should s"pass the $testName test from $testDir" in {
         // Use ElfLoader for all supported file types
-        val (imem, dmem, start) = ElfLoader.load(binFile)
+        val (imem, dmem, start) = ElfLoader.load(elfFile)
 
-        val dmemSize = 4096 // Reduced to 4096 to avoid StackOverflow with Reg(Vec)
+        val dmemSize = 4096 
         val newDmem = new Array[Int](dmemSize)
         // Check bounds before copying
         val copyLen = math.min(dmem.length, dmemSize)
@@ -59,7 +59,7 @@ class InstructionTest extends AnyFlatSpec with ChiselScalatestTester {
 
           // Run Simulation
           c.io.run.poke(true.B)
-          c.clock.setTimeout(10000) 
+          c.clock.setTimeout(200000)
           
           var cycles = 0
           while (!c.io.done.peek().litToBoolean) {

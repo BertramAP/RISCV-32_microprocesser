@@ -2,12 +2,12 @@ package stages
 import chisel3._
 import chisel3.util._
 
-class ExecuteStage extends Module {
+class ExecuteStage(memSize: Int = 4096) extends Module {
     val io = IO(new Bundle {
       // Inputs from the Decode stage
       val in = Input(new DecodeExecuteIO)
       // Outputs to the Memory stage
-      val out = Output(new ExecuteMemIO)
+      val out = Output(new ExecuteMemIO(memSize))
       // Outputs to the Fetch stage for branch handling
     val IO_forwarding = Input(new Bundle {
         val mem_rd = UInt(5.W)
@@ -34,7 +34,7 @@ class ExecuteStage extends Module {
     } .elsewhen (forwardA_WB) {
         src1_forwarded := io.IO_forwarding.wb_writeData
     } .otherwise {
-        src1_forwarded := Mux(io.in.isPC, io.in.pc, io.in.src1) // Use values from buffer (or PC)
+        src1_forwarded := Mux(io.in.isPC, io.in.pc, io.in.src1) // Use values from src1 or PC
     }
 
     // Forwarding B (rs2)
@@ -67,35 +67,31 @@ class ExecuteStage extends Module {
     io.BranchOut.stall := false.B
 
     val branchCond = WireDefault(false.B)
-  
+
+    val src1_ext = Cat(0.U(1.W), src1_forwarded)
+    val src2_ext = Cat(0.U(1.W), src2_forwarded)
+    val diff = src1_ext - src2_ext
+    val eq = diff === 0.U
+    
+    val sgn1 = src1_forwarded(31)
+    val sgn2 = src2_forwarded(31)
+    val slt = Mux(sgn1 === sgn2, diff(31), sgn1)
+    val sltu = diff(32)
+
     when (io.in.isBranch) {
       switch(io.in.funct3) {
-        is("b000".U) { // BEQ
-          branchCond := src1_forwarded === src2_forwarded
-        }
-        is("b001".U) { // BNE
-          branchCond := src1_forwarded =/= src2_forwarded
-        }
-        is("b100".U) { // BLT
-          branchCond := src1_forwarded.asSInt < src2_forwarded.asSInt
-        }
-        is("b101".U) { // BGE
-          branchCond := src1_forwarded.asSInt >= src2_forwarded.asSInt
-        }
-        is("b110".U) { // BLTU
-          branchCond := src1_forwarded < src2_forwarded
-        }
-        is("b111".U) { // BGEU
-          branchCond := src1_forwarded >= src2_forwarded
-        }
+        is("b000".U) { branchCond := eq }      // BEQ
+        is("b001".U) { branchCond := !eq }     // BNE
+        is("b100".U) { branchCond := slt }     // BLT
+        is("b101".U) { branchCond := !slt }    // BGE
+        is("b110".U) { branchCond := sltu }    // BLTU
+        is("b111".U) { branchCond := !sltu }   // BGEU
       }
     }
-
     val aluOut = WireDefault(0.U(32.W))
     val aluZero = WireDefault(false.B)
 
     // ALU Logic
-    // src1 and src2 are already defined above with forwarding logic
 
     val aluOp = io.in.aluOp
     val shamt = src2(4, 0)
@@ -154,9 +150,34 @@ class ExecuteStage extends Module {
     } .otherwise {
       io.out.aluOut := aluOut
     }
-
+    val wMask = WireDefault(0.U(4.W))
+    when(io.in.memWrite) {
+      switch(io.in.funct3) {
+        is(0.U) { wMask := 1.U }  // SB 
+        is(1.U) { wMask := 3.U }  // SH 
+        is(2.U) { wMask := 15.U } // SW 
+        is(3.U) { wMask := 15.U }
+      }
+    }
     io.out.addrWord := aluOut(31, 2) // Word address for memory
-    io.out.storeData := src2_forwarded
     io.out.funct3 := io.in.funct3
     io.out.rd := io.in.dest(4, 0) // Truncate to 5 bits for register index
+    val wBytes = VecInit(src2_forwarded(7,0), src2_forwarded(15,8), src2_forwarded(23,16), src2_forwarded(31,24))
+    val bankData = Wire(Vec(4, UInt(8.W)))
+    val bankMemWrite = Wire(Vec(4, Bool()))
+    io.out.bankData := bankData
+    val offset = aluOut(1, 0) // Byte offset within the 32-bit word address
+    val aluOutWide = aluOut.asUInt.pad(log2Ceil(memSize * 4))
+    val wordIdx = aluOutWide(log2Ceil(memSize * 4) - 1, 2) // Word index
+
+    val bankAddr = Wire(Vec(4, UInt(log2Ceil(memSize).W)))
+    for (i <- 0 until 4) {
+      bankAddr(i) := Mux(i.U < offset, wordIdx + 1.U, wordIdx)
+      val j = (i.U - offset)(1, 0)
+      bankData(i) := wBytes(j)
+      bankMemWrite(i) := io.in.memWrite && wMask(j)
+    }
+    io.out.bankData := bankData
+    io.out.bankMemWrite := bankMemWrite
+    io.out.bankAddr := bankAddr
 }
