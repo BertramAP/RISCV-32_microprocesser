@@ -7,7 +7,7 @@ PORT = '/dev/ttyUSB1'  # Change this to your UART port
 #PORT = 'COM6'  # Change this to your UART port
 BAUDRATE = 115200 # Shloud be the same for all of us, so dont change it
 # Use elf file for meta data
-FILE = "/home/ap/Dokumenter/RISCV-32_microprocesser/tests/Prime_benchmark/prime.elf"  # Change this to the elf file path you want to upload
+FILE = "/home/ap/Dokumenter/RISCV-32_microprocesser/tests/GCD_Benchmark/gcd.elf"  # Change this to the elf file path you want to upload
 #FILE = "C:/Users/Bertram/OneDrive - Danmarks Tekniske Universitet/RISCV-32_microprocesser/tests/simple/addlarge.out"  # Change this to the elf file path you want to upload
 def uploadFirmware(ser, file_path):
     print(f"Opened port {ser.port} at {ser.baudrate} baud.")
@@ -86,10 +86,33 @@ def listenToUART_OneShot(ser): # For listening for a single event
     else:
         print("Timeout or Error: Did not receive 4 full bytes.")
 
+def listenToUART_allRegs(ser): # For listening for a single event
+    print("Waiting for FPGA button press...")
+    
+    # Block until we receive exactly 4 bytes (32 bits)
+    data = ser.read(132)  # Read 132 bytes for cycles and all register values
+    
+    if len(data) == 132:
+        # Unpack as Little Endian (<) Unsigned Int (I)
+        result_val = struct.unpack("<32I", data[:128])
+        cycles = struct.unpack("<I", data[128:])[0]
+        print("=" * 30)
+        print(f"Cycles taken:       {cycles}")
+        print("-" * 30)
+        time_ns = cycles * (1e9 / 100_000_000)  # Assuming a 100 MHz clock, may change depending on our how well we optimize our current processer implementation
+        print(f"Execution time:     {time_ns:.2f} ns")
+        print("=" * 30)
+        for i, val in enumerate(result_val):
+            print(f"Register x{i:02} Value: {val} (Hex: {hex(val)})")
+        print("=" * 30)
+    else:
+        print("Timeout or Error: Did not receive 4 full bytes.")
+
+
 ser = serial.Serial(PORT, BAUDRATE, timeout=1)
 uploadFirmware(ser, FILE)
 ser.close()
 ser = serial.Serial(PORT, BAUDRATE, timeout=50)
-listenToUART_OneShot(ser)
+listenToUART_allRegs(ser)
 ser.close()
 print("Closed UART port.")

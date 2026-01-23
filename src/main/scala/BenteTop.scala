@@ -6,8 +6,6 @@ import chisel3.util._
 class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, memSizeWords: Int = 4096) extends Module {
   val io = IO(new Bundle {
     
-    // For debugging with uart
-    val debugRegVal = Output(UInt(32.W))
     // For InstructionTest
     val debug_regFile = Output(Vec(32, UInt(32.W)))
   
@@ -138,7 +136,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   executeStage.io.IO_forwarding.wb_regWrite := writeBackStage.io.rfRegWrite
   executeStage.io.IO_forwarding.wb_writeData := writeBackStage.io.rfWriteData
 
-// 1. Default: Always load the next instruction from Decode.
+  // 1. Default: Always load the next instruction from Decode.
   // This connects the heavy data buses (src1, src2, imm) directly, 
   // without 'branchTaken' interfering in their path.
   idExReg.imm      := decodeStage.io.out.imm
@@ -157,7 +155,7 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
   idExReg.rs2_addr := decodeStage.io.out.src2
 
   // 2. Control Signals: Load normally, OR kill them if we need to flush/stall.
-  // 'branchTaken' only loads these few bits, reducing fanout from ~150 to ~10.
+  // 'branchTaken' only loads these few bits from Decode when not flushing.
   when (branchTaken || shouldStall) {
      idExReg.regWrite := false.B
      idExReg.memWrite := false.B
@@ -175,7 +173,6 @@ class BenteTop(imemInitArr: Array[Int], dmemInitArr: Array[Int], PcStart: Int, m
      idExReg.isJumpr  := decodeStage.io.out.isJumpr
      idExReg.done     := decodeStage.io.out.done
   }
-  io.debugRegVal := registerFile.io.debugRegVal
   io.debug_regFile := registerFile.io.debug_regFile
   
 }

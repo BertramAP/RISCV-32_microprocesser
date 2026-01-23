@@ -168,7 +168,7 @@ class LoadAndRunTester(memSizeWords: Int = 4096, PcStart: Int = 0) extends Modul
   }.elsewhen(core.io.done && !txCaptured) {
     doneLatched := true.B
     txCaptured := true.B
-    txData := Cat(cycleCounter, core.io.debugRegVal) // example: capture reg x10 (a0) LSB
+    txData := Cat(cycleCounter, core.io.debug_regFile(10)) // example: capture reg x10 (a0) LSB
     txState := txSend
     byteCount := 0.U
   }.elsewhen(core.io.run && !loadingActive && !doneLatched) {
