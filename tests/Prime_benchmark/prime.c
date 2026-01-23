@@ -3,9 +3,7 @@
 // #define UART_ADDR 0x00001000
 // #define DEBUG_EN
 
-#ifndef NUM_PRIMES
 #define NUM_PRIMES 25
-#endif
 
 #define BOOL int
 #define TRUE 1
@@ -68,10 +66,8 @@ void itoa(unsigned int value, char *str)
 // ###############################
 typedef struct
 {
-    volatile unsigned char DATA;         // Offset 0x00: Data Register
-    volatile unsigned char RESERVED[3];  // Padding to align to 4 bytes
-    volatile unsigned char STATUS;       // Offset 0x04: Status Register
-    volatile unsigned char RESERVED2[3]; // Padding to align to 4 bytes
+    volatile unsigned int DATA;   // Offset 0x00: Data Register
+    volatile unsigned int STATUS; // Offset 0x04: Status Register
 
 } UART_t;
 
@@ -82,20 +78,19 @@ volatile UART_t *get_uart(unsigned int addr)
 // Example
 // volatile UART_t *uart0 = get_uart(0x10000000);
 
-void uart_write_char(volatile UART_t *uart, unsigned char c) // uart commented out for our PrimeTests
+void uart_write_char(volatile UART_t *uart, unsigned char c)
 {
     // wait until TX is ready
-    // wait until TX is ready
-    // while ((uart->STATUS & 0x1) == 0)
-    //    ;
-    uart->DATA = (unsigned char)c;
+    while ((uart->STATUS & 0x1) == 0)
+        ;
+    uart->DATA = (unsigned int)c;
 }
 
 void uart_write_string(volatile UART_t *uart, const char *str)
 {
     while (*str)
     {
-        uart_write_char(uart, (unsigned char)*str++);
+        uart_write_char(uart, (unsigned int)*str++);
     }
 }
 
@@ -133,7 +128,7 @@ void uart_read_line(volatile UART_t *uart, unsigned char *buffer, unsigned int m
 __attribute__((section(".text.start"))) __attribute__((naked)) void entry()
 {
     // We love that no stack pointer is initialized by default
-    __asm__ volatile("li sp, 0x00003FF0"); // Set stack pointer to top of memory
+    __asm__ volatile("li sp, 0x2FFF0"); // Set stack pointer to top of memory
     __asm__ volatile("jal ra, main");
     __asm__ volatile("ecall"); // infinite loop after main returns
 }
@@ -211,6 +206,13 @@ int main()
 
 #else
     uart_write_char(uart, ENDBYTE); // end benchmark if no csr
+#endif
+
+// send to registerfile
+#ifdef REGISTER_TEST
+    __asm__ volatile("mv a0, %0" : : "r"(num));
+    __asm__ volatile("mv a1, %0" : : "r"(primes[NUM_PRIMES - 1]));
+    __asm__ volatile("ecall");
 #endif
 
     return 0;

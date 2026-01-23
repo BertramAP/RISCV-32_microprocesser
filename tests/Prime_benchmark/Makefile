@@ -18,9 +18,9 @@ export CROSS=riscv64-unknown-elf-
 endif
 #end of shameless stealing
 
-CC = $(CROSS)gcc
-OBJCOPY = $(CROSS)objcopy
-OBJDUMP = $(CROSS)objdump
+CC = riscv64-elf-gcc
+OBJCOPY = riscv64-elf-objcopy
+OBJDUMP = riscv64-elf-objdump
 
 # Compiler flags for RV32I bare metal
 CFLAGS = -mabi=ilp32 -O0 

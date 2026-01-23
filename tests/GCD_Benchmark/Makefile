@@ -11,8 +11,8 @@ else
   export CROSS=riscv64-unknown-elf-
 endif
 
-CC = $(CROSS)gcc
-OBJCOPY = $(CROSS)objcopy
+CC = riscv64-elf-gcc
+OBJCOPY = riscv64-elf-objcopy
 
 # Compiler flags for a bare‑metal RV32I target
 CFLAGS = -mabi=ilp32 -march=rv32i -O0 -ffreestanding -nostdlib -e entry -T linker.ld
